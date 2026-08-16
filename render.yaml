@@ -1,0 +1,26 @@
+services:
+  - type: web
+    name: decentra-license
+    runtime: node
+    region: oregon
+    plan: free
+    buildCommand: npm install --legacy-peer-deps && npm run build
+    startCommand: npm run start
+    nodeVersion: "20"
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: NEXT_PUBLIC_REOWN_PROJECT_ID
+        sync: false
+      - key: NEXT_PUBLIC_ADMIN_WALLET_ADDRESS
+        sync: false
+      - key: NEXT_PUBLIC_USDT_CONTRACT_ADDRESS
+        sync: false
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+      - key: BSC_RPC_URL
+        sync: false
+      - key: SUBSCRIPTION_PRICE_WEI
+        value: "30000000000000000000"

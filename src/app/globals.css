@@ -1,0 +1,72 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* System font stacks — no external font fetching required */
+:root {
+  --font-sans: 'Inter', ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-mono: 'JetBrains Mono', 'Cascadia Code', 'Fira Code', ui-monospace, 'Courier New', monospace;
+}
+body { font-family: var(--font-sans); }
+
+/* ── Custom scrollbar ──────────────────────────────────────────────────────── */
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: #020818; }
+::-webkit-scrollbar-thumb { background: #0e2456; border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: #2dd4bf; }
+
+/* ── Focus ring (accessible) ───────────────────────────────────────────────── */
+:focus-visible {
+  outline: 2px solid #2dd4bf;
+  outline-offset: 3px;
+}
+
+/* ── Selection color ────────────────────────────────────────────────────────── */
+::selection {
+  background: rgba(45, 212, 191, 0.25);
+  color: #fff;
+}
+
+/* ── Animated gradient border ───────────────────────────────────────────────── */
+@keyframes border-rotate {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+.animated-border {
+  background: linear-gradient(
+    90deg,
+    #2dd4bf,
+    #0e2456,
+    #fbbf24,
+    #0e2456,
+    #2dd4bf
+  );
+  background-size: 300% 300%;
+  animation: border-rotate 4s ease infinite;
+}
+
+/* ── Shimmer loading state ───────────────────────────────────────────────────── */
+.shimmer {
+  background: linear-gradient(
+    90deg,
+    rgba(45, 212, 191, 0.0) 0%,
+    rgba(45, 212, 191, 0.15) 50%,
+    rgba(45, 212, 191, 0.0) 100%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+/* ── Step connector line ────────────────────────────────────────────────────── */
+.step-line::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 100%;
+  transform: translateX(-50%);
+  width: 1px;
+  height: 32px;
+  background: linear-gradient(to bottom, #2dd4bf40, transparent);
+}
