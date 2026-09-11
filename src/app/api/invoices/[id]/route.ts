@@ -19,7 +19,7 @@ import { findUsdtTransferToAdmin } from "@/lib/tx-verifier";
 import { issueOrRenewLicense } from "@/lib/license-service";
 import type { InvoiceStatusResponse } from "@/types";
 
-const SCAN_BACK_BLOCKS = 200n; // keep the RPC log window bounded (≈10 min)
+const SCAN_BACK_BLOCKS = BigInt(200); // keep the RPC log window bounded (≈10 min)
 
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
