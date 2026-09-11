@@ -13,7 +13,7 @@ export function CheckoutCard({ product }: Props) {
   const [showModal, setShowModal] = useState(false);
   const [qrWallet, setQrWallet]   = useState<string | null>(null);
   const {
-    state, disconnect, executePurchase, reset,
+    state, setState, disconnect, executePurchase, reset,
     isConnected, isOnBsc, address,
   } = useCheckoutFlow(product);
 
