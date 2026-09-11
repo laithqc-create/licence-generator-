@@ -54,7 +54,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     return NextResponse.json({ success: true, status: invoice.status } satisfies InvoiceStatusResponse);
 
   // ── Pending: scan for a matching incoming transfer ─────────────────────────
-  let latestBlock = 0n;
+  let latestBlock = BigInt(0);
   try {
     const { createPublicClient, http } = await import("viem");
     const { bsc } = await import("viem/chains");
