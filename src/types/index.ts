@@ -87,3 +87,51 @@ export interface CheckoutState {
   isNewUser?:    boolean;
   errorMessage?: string;
 }
+
+// ── Scan-To-Pay (EIP-681 QR) ─────────────────────────────────────────────────
+export interface PaymentInvoice {
+  id:                 string;
+  product_id:         string;
+  amount_wei:         string;   // numeric string (safe for JS)
+  amount_label:       string;   // e.g. "30.00 USDT"
+  scan_from_block:    number;
+  status:             "pending" | "paid" | "expired";
+  wallet_address:     string | null;
+  tx_hash:            string | null;
+  license_key:        string | null;
+  expires_at:         string | null;
+  created_at:         string;
+  expires_invoices_at: string;
+}
+
+export interface CreateInvoiceSuccess {
+  success:  true;
+  invoice:  PaymentInvoice;
+  payUri:   string;   // ethereum:... EIP-681 URI — the QR payload
+  recipient: string;  // admin wallet
+  durationDays: number;
+}
+
+export interface CreateInvoiceError {
+  success: false;
+  error:   string;
+}
+
+export type CreateInvoiceResponse = CreateInvoiceSuccess | CreateInvoiceError;
+
+// status: "pending" → keep polling; "paid" → license issued; "expired" → new QR
+export interface InvoiceStatusSuccess {
+  success: true;
+  status:  "pending" | "paid" | "expired";
+  txHash?: string;
+  licenseKey?: string;
+  expiresAt?: string;
+  isNewUser?: boolean;
+}
+
+export interface InvoiceStatusError {
+  success: false;
+  error:   string;
+}
+
+export type InvoiceStatusResponse = InvoiceStatusSuccess | InvoiceStatusError;

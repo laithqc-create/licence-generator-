@@ -1,15 +1,21 @@
 "use client";
 // ─────────────────────────────────────────────────────────────────────────────
-// WalletModal — calls connect() directly for instant wallet trigger
-// When WalletConnect connector exists → connect() opens QR modal automatically
-// When only injected → connects browser extension directly
+// WalletModal — wallet picker for scan-to-pay
+//
+// Tapping a named wallet (OKX, Binance, MetaMask, Trust, …) opens the
+// EIP-681 scan-to-pay QR — the buyer scans it with their wallet's own QR
+// scanner and approves the USDT transfer. No WalletConnect pairing session.
+//
+// A browser-extension wallet (or WalletConnect, when a projectId is set) stays
+// available as an "instant connect" fallback for power users.
 // ─────────────────────────────────────────────────────────────────────────────
 import { useEffect, useState } from "react";
 import { useConnect } from "wagmi";
 
 interface Props {
-  onClose:   () => void;
-  priceUsdt: number;
+  onClose:      () => void;
+  priceUsdt:    number;
+  onPickWallet: (label: string) => void; // opens the scan-to-pay QR
 }
 
 const POPULAR = [
@@ -21,7 +27,7 @@ const POPULAR = [
   { key: "phantom",  label: "Phantom",        emoji: "👻", color: "#9945FF" },
 ];
 
-export function WalletModal({ onClose, priceUsdt }: Props) {
+export function WalletModal({ onClose, priceUsdt, onPickWallet }: Props) {
   const { connect, connectors, isPending } = useConnect();
   const [mounted, setMounted] = useState(false);
   const [search,  setSearch]  = useState("");
@@ -44,7 +50,7 @@ export function WalletModal({ onClose, priceUsdt }: Props) {
   const wcConnector  = unique.find(c => c.name.toLowerCase().includes("walletconnect"));
   const injConnector = unique.find(c => c.id === "injected" || c.name.toLowerCase().includes("injected"));
 
-  // Direct connect — wagmi's connect() triggers WC QR modal automatically
+  // Direct connect — legacy instant flow (extension or WalletConnect session)
   const handleConnect = (connectorId: string, label: string) => {
     const target = unique.find(c => c.id === connectorId);
     if (!target) return;
@@ -58,21 +64,12 @@ export function WalletModal({ onClose, priceUsdt }: Props) {
     );
   };
 
-  // For popular wallet buttons: use WC if available, else injected
-  const handlePopular = (label: string) => {
-    if (wcConnector) {
-      handleConnect(wcConnector.id, label);
-    } else if (injConnector) {
-      handleConnect(injConnector.id, label);
-    }
-    // If neither is available, do nothing (user sees install prompt)
-  };
+  // Scan-to-pay: any named wallet leads to the EIP-681 QR screen
+  const handlePopular = (label: string) => onPickWallet(label);
 
   const filteredPopular = search
     ? POPULAR.filter(p => p.label.toLowerCase().includes(search.toLowerCase()))
     : POPULAR;
-
-  const noWallets = unique.length === 0;
 
   return (
     <div
@@ -96,7 +93,7 @@ export function WalletModal({ onClose, priceUsdt }: Props) {
               </svg>
             </button>
           </div>
-          <p className="text-xs text-gray-400">Pay {priceUsdt} USDT on BNB Smart Chain</p>
+          <p className="text-xs text-gray-400">Choose your wallet — we'll show a QR code for it</p>
         </div>
 
         {/* Search */}
@@ -107,7 +104,7 @@ export function WalletModal({ onClose, priceUsdt }: Props) {
             </svg>
             <input
               type="text"
-              placeholder="Search through over 400 wallets"
+              placeholder="Search wallets"
               value={search}
               onChange={e => setSearch(e.target.value)}
               className="w-full pl-9 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm text-gray-700 placeholder-gray-400 focus:outline-none focus:border-blue-400"
@@ -118,95 +115,69 @@ export function WalletModal({ onClose, priceUsdt }: Props) {
         {/* Wallet list */}
         <div className="px-3 pb-3 max-h-80 overflow-y-auto space-y-0.5">
 
-          {noWallets ? (
-            /* No wallet at all */
-            <div className="px-3 py-6 text-center space-y-3">
-              <div className="text-3xl">👛</div>
-              <p className="text-sm font-semibold text-gray-700">No wallet detected</p>
-              <p className="text-xs text-gray-400">Install a browser wallet extension to continue</p>
-              {[
-                { name: "MetaMask",   url: "https://metamask.io/download/" },
-                { name: "OKX Wallet", url: "https://www.okx.com/web3" },
-              ].map(w => (
-                <a key={w.name} href={w.url} target="_blank" rel="noopener noreferrer"
-                  className="flex items-center justify-center w-full py-2.5 rounded-xl border border-gray-200 text-sm text-gray-700 hover:bg-gray-50"
-                >
-                  Install {w.name} →
-                </a>
-              ))}
-            </div>
-          ) : (
-            <>
-              {/* Injected extension — show at top if installed */}
-              {injConnector && !search && (
-                <button
-                  key={injConnector.uid}
-                  onClick={() => handleConnect(injConnector.id, injConnector.name)}
-                  disabled={!!connecting}
-                  className="w-full flex items-center gap-3 px-3 py-3 rounded-xl hover:bg-gray-50 transition-colors text-left disabled:opacity-60"
-                >
-                  <div className="w-9 h-9 rounded-xl bg-orange-50 border border-orange-100 flex items-center justify-center text-lg flex-shrink-0">
-                    🔌
-                  </div>
-                  <div className="flex-1">
-                    <p className="text-sm font-semibold text-gray-900">{injConnector.name}</p>
-                    <p className="text-xs text-gray-400">
-                      {connecting === injConnector.name ? "Connecting…" : "Browser extension • Installed"}
-                    </p>
-                  </div>
-                  {connecting === injConnector.name ? (
-                    <svg className="w-4 h-4 text-blue-500 animate-spin" fill="none" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
-                    </svg>
-                  ) : (
-                    <svg className="w-4 h-4 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
-                    </svg>
-                  )}
-                </button>
+          {/* Browser extension — instant connect when installed */}
+          {injConnector && !search && (
+            <button
+              key={injConnector.uid}
+              onClick={() => handleConnect(injConnector.id, injConnector.name)}
+              disabled={!!connecting}
+              className="w-full flex items-center gap-3 px-3 py-3 rounded-xl hover:bg-gray-50 transition-colors text-left disabled:opacity-60 border border-dashed border-gray-200"
+            >
+              <div className="w-9 h-9 rounded-xl bg-orange-50 border border-orange-100 flex items-center justify-center text-lg flex-shrink-0">
+                🔌
+              </div>
+              <div className="flex-1">
+                <p className="text-sm font-semibold text-gray-900">{injConnector.name} · Instant</p>
+                <p className="text-xs text-gray-400">
+                  {connecting === injConnector.name ? "Connecting…" : "Browser extension — pay in one click"}
+                </p>
+              </div>
+              {connecting === injConnector.name ? (
+                <svg className="w-4 h-4 text-blue-500 animate-spin" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
+                </svg>
+              ) : (
+                <svg className="w-4 h-4 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+                </svg>
               )}
+            </button>
+          )}
 
-              {/* Popular wallets via WalletConnect QR */}
-              {filteredPopular.map(w => (
-                <button
-                  key={w.key}
-                  onClick={() => handlePopular(w.label)}
-                  disabled={!!connecting || (!wcConnector && !injConnector)}
-                  className="w-full flex items-center gap-3 px-3 py-3 rounded-xl hover:bg-gray-50 transition-colors text-left disabled:opacity-60"
-                >
-                  <div
-                    className="w-9 h-9 rounded-xl flex items-center justify-center text-lg flex-shrink-0"
-                    style={{ background: w.color + "15", border: `1px solid ${w.color}30` }}
-                  >
-                    {w.emoji}
-                  </div>
-                  <div className="flex-1">
-                    <p className="text-sm font-semibold text-gray-900">{w.label}</p>
-                    <p className="text-xs text-gray-400">
-                      {connecting === w.label
-                        ? "Opening QR code…"
-                        : wcConnector
-                        ? "Scan QR from mobile app"
-                        : "Connect via browser extension"
-                      }
-                    </p>
-                  </div>
-                  {connecting === w.label ? (
-                    <svg className="w-4 h-4 text-blue-500 animate-spin" fill="none" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
-                    </svg>
-                  ) : (
-                    <svg className="w-4 h-4 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
-                    </svg>
-                  )}
-                </button>
-              ))}
+          <div className="flex items-center gap-2 px-2 pt-0.5">
+            <span className="flex-1 h-px bg-gray-100" />
+            <span className="text-[10px] uppercase tracking-wider text-gray-400">Or scan to pay</span>
+            <span className="flex-1 h-px bg-gray-100" />
+          </div>
 
-              {/* WalletConnect — all wallets QR */}
-              {!search && wcConnector && (
+          {/* Popular wallets — scan-to-pay (EIP-681 QR) */}
+          {filteredPopular.map(w => (
+            <button
+              key={w.key}
+              onClick={() => handlePopular(w.label)}
+              className="w-full flex items-center gap-3 px-3 py-3 rounded-xl hover:bg-gray-50 transition-colors text-left"
+            >
+              <div
+                className="w-9 h-9 rounded-xl flex items-center justify-center text-lg flex-shrink-0"
+                style={{ background: w.color + "15", border: `1px solid ${w.color}30` }}
+              >
+                {w.emoji}
+              </div>
+              <div className="flex-1">
+                <p className="text-sm font-semibold text-gray-900">{w.label}</p>
+                <p className="text-xs text-gray-400">
+                  Scan-to-pay · open in {w.label.split(" ")[0]}
+                </p>
+              </div>
+              <svg className="w-4 h-4 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+              </svg>
+            </button>
+          ))}
+
+          {/* WalletConnect — all wallets QR */}
+          {!search && wcConnector && (
                 <button
                   onClick={() => handleConnect(wcConnector.id, "WalletConnect")}
                   disabled={!!connecting}
@@ -239,17 +210,15 @@ export function WalletModal({ onClose, priceUsdt }: Props) {
               {/* No WC + no project ID notice */}
               {!wcConnector && !search && (
                 <p className="text-center text-xs text-gray-400 py-2 px-3">
-                  Add <code className="bg-gray-100 px-1 rounded">NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID</code> to enable QR code for mobile wallets
+                  Enable <code className="bg-gray-100 px-1 rounded">NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID</code> to also add WalletConnect instant-pay support
                 </p>
               )}
-            </>
-          )}
         </div>
 
         {/* Footer */}
         <div className="px-5 py-3 border-t border-gray-100 bg-gray-50">
           <p className="text-center text-xs text-gray-400">
-            By connecting you authorize a {priceUsdt} USDT payment on BNB Smart Chain
+            Scan the QR with your wallet and approve the {priceUsdt}+ USDT transfer on BNB Smart Chain
           </p>
         </div>
       </div>

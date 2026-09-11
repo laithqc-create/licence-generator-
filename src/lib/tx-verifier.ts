@@ -63,3 +63,78 @@ export async function verifyUsdtTransfer(
 
   return { valid: false, reason: "No valid Transfer to admin wallet found." };
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Scan-To-Pay scanner — find a confirmed USDT transfer matching an exact amount
+//
+// The buyer never connects a wallet session, so we cannot rely on a txHash or
+// on the buyer's address. Instead each invoice carries a unique amount (base
+// price + random cent surcharge). We scan recent Transfer logs of the USDT
+// contract addressed to the admin wallet and look for an exact value match.
+// ─────────────────────────────────────────────────────────────────────────────
+export interface ScannedPayment {
+  txHash:   `0x${string}`;
+  sender:   `0x${string}`;
+  blockNumber: bigint;
+}
+
+/**
+ * Searches Transfer events of the USDT contract addressed to the admin wallet
+ * within [fromBlock, toBlock]. Returns the first event whose value (wei) equals
+ * exactly `amountWei`. Logs are decoded via viem's event filter which returns
+ * plain args, so `value` arrives already as a bigint.
+ */
+export async function findUsdtTransferToAdmin(
+  amountWei: bigint,
+  fromBlock: bigint,
+  toBlock: bigint,
+): Promise<ScannedPayment | null> {
+  const rpcUrl       = process.env.BSC_RPC_URL ?? "https://rpc.ankr.com/bsc";
+  const adminWallet  = (process.env.NEXT_PUBLIC_ADMIN_WALLET_ADDRESS  ?? "").toLowerCase();
+  const usdtContract = (process.env.NEXT_PUBLIC_USDT_CONTRACT_ADDRESS ?? "0x55d398326f99059fF775485246999027B3197955").toLowerCase();
+
+  if (!adminWallet)
+    throw new Error("Server config error: admin wallet not set.");
+
+  const client = createPublicClient({
+    chain: bsc,
+    transport: http(rpcUrl, { timeout: 15_000, retryCount: 3, retryDelay: 1_000 }),
+  });
+
+  let logs;
+  try {
+    // event filter decodes logs for us; args scopes to Transfer(from,to) topics
+    logs = await client.getLogs({
+      address: usdtContract as Hex,
+      event: TRANSFER_ABI[0],
+      fromBlock,
+      toBlock,
+      strict: true,
+    });
+  } catch {
+    return null; // RPC hiccup — callers treat as "still pending"
+  }
+
+  // Logs from getLogs are decoded; the typed shape we care about is
+  // { transactionHash, blockNumber, args: { from, to, value } }.
+  interface DecodedTransfer {
+    transactionHash: `0x${string}`;
+    blockNumber:     bigint;
+    args:            { from: `0x${string}`; to: `0x${string}`; value: bigint };
+  }
+  const decodedLogs = (logs ?? []) as unknown as DecodedTransfer[];
+
+  for (const log of decodedLogs) {
+    try {
+      if (String(log.args.to).toLowerCase() !== adminWallet) continue;
+      if (log.args.value !== amountWei) continue; // exact unique amount
+      return {
+        txHash:      log.transactionHash,
+        sender:      String(log.args.from).toLowerCase() as `0x${string}`,
+        blockNumber: log.blockNumber,
+      };
+    } catch { continue; }
+  }
+
+  return null;
+}

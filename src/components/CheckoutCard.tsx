@@ -4,12 +4,14 @@ import { useCheckoutFlow }  from "./useCheckoutFlow";
 import { LicenseDisplay }   from "./LicenseDisplay";
 import { StatusIndicator }  from "./StatusIndicator";
 import { WalletModal }      from "./WalletModal";
+import { QrPaymentModal }   from "./QrPaymentModal";
 import type { Product }     from "@/types";
 
 interface Props { product: Product; }
 
 export function CheckoutCard({ product }: Props) {
   const [showModal, setShowModal] = useState(false);
+  const [qrWallet, setQrWallet]   = useState<string | null>(null);
   const {
     state, disconnect, executePurchase, reset,
     isConnected, isOnBsc, address,
@@ -18,12 +20,26 @@ export function CheckoutCard({ product }: Props) {
   const isLoading = ["pending","confirming","verifying"].includes(state.step);
   const truncated = address ? `${address.slice(0,6)}…${address.slice(-4)}` : null;
 
+  const handleQrSuccess = (data: { licenseKey: string; expiresAt: string; isNewUser: boolean; txHash: string }) => {
+    setQrWallet(null);
+    setShowModal(false);
+    setState({
+      step: "success",
+      licenseKey: data.licenseKey,
+      expiresAt:  data.expiresAt,
+      isNewUser:  data.isNewUser,
+      txHash:     data.txHash || undefined,
+    });
+  };
+
   if (state.step === "success" && state.licenseKey && state.expiresAt) {
     return (
       <LicenseDisplay
         licenseKey={state.licenseKey}
         expiresAt={state.expiresAt}
         isNewUser={state.isNewUser ?? true}
+        durationDays={product.duration_days}
+        priceUsdt={product.price_usdt}
         txHash={state.txHash}
         onReset={reset}
       />
@@ -36,6 +52,16 @@ export function CheckoutCard({ product }: Props) {
         <WalletModal
           priceUsdt={product.price_usdt}
           onClose={() => setShowModal(false)}
+          onPickWallet={(label) => { setShowModal(false); setQrWallet(label); }}
+        />
+      )}
+
+      {qrWallet && (
+        <QrPaymentModal
+          product={product}
+          walletLabel={qrWallet}
+          onClose={() => setQrWallet(null)}
+          onSuccess={handleQrSuccess}
         />
       )}
 
@@ -66,8 +92,9 @@ export function CheckoutCard({ product }: Props) {
         </div>
       )}
 
-      {/* Status steps */}
-      {!["idle","connected","error"].includes(state.step) && (
+      {/* Status steps — show pending/verifying during live payments, and the
+          awaiting-payment step while the QR screen is open */}
+      {(!["idle","connected","error"].includes(state.step) || (qrWallet && state.step === "connected")) && (
         <StatusIndicator step={state.step} txHash={state.txHash} />
       )}
 
@@ -105,7 +132,7 @@ export function CheckoutCard({ product }: Props) {
           <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M21 12a2.25 2.25 0 00-2.25-2.25H15a3 3 0 11-6 0H5.25A2.25 2.25 0 003 12m18 0v6a2.25 2.25 0 01-2.25 2.25H5.25A2.25 2.25 0 013 18v-6m18 0V9M3 12V9m18 0a2.25 2.25 0 00-2.25-2.25H5.25A2.25 2.25 0 003 9m18 0V6a2.25 2.25 0 00-2.25-2.25H5.25A2.25 2.25 0 003 6v3" />
           </svg>
-          Connect Wallet &amp; Pay {product.price_usdt} USDT
+          Choose Wallet &amp; Pay {product.price_usdt} USDT
         </button>
       ) : isLoading ? (
         <div className="w-full flex items-center justify-center gap-3 px-6 py-4 rounded-xl font-semibold text-base bg-navy-800 text-slate-400 border border-navy-700 cursor-wait">

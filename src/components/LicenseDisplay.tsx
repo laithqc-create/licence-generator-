@@ -6,6 +6,8 @@ interface LicenseDisplayProps {
   licenseKey: string;
   expiresAt: string;
   isNewUser: boolean;
+  durationDays: number;
+  priceUsdt: number;
   txHash?: string;
   onReset: () => void;
 }
@@ -14,6 +16,8 @@ export function LicenseDisplay({
   licenseKey,
   expiresAt,
   isNewUser,
+  durationDays,
+  priceUsdt,
   txHash,
   onReset,
 }: LicenseDisplayProps) {
@@ -73,8 +77,8 @@ export function LicenseDisplay({
         </h2>
         <p className="text-sm text-slate-400">
           {isNewUser
-            ? "Your 30-day subscription is now active."
-            : "Your subscription has been extended by 30 days."}
+            ? `Your ${durationDays}-day subscription is now active.`
+            : `Your subscription has been extended by ${durationDays} days.`}
         </p>
       </div>
 
@@ -130,7 +134,7 @@ export function LicenseDisplay({
       <div className="grid grid-cols-2 gap-3">
         <div className="rounded-lg border border-navy-700 bg-navy-900/50 p-4">
           <p className="text-xs text-slate-500 mb-1">Subscription Period</p>
-          <p className="text-sm font-semibold text-white">30 Days</p>
+          <p className="text-sm font-semibold text-white">{durationDays} Days</p>
         </div>
         <div className="rounded-lg border border-navy-700 bg-navy-900/50 p-4">
           <p className="text-xs text-slate-500 mb-1">Expires On</p>
@@ -159,7 +163,7 @@ export function LicenseDisplay({
           <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
         </svg>
         <p className="text-xs text-slate-400 leading-relaxed">
-          Store your license key securely. It cannot be recovered if lost. To renew, simply send another 30 USDT payment from the same wallet — your key will be preserved.
+          Store your license key securely. It cannot be recovered if lost. To renew, simply send another payment from the same wallet — your key will be preserved.
         </p>
       </div>
 

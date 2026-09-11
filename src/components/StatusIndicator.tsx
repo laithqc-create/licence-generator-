@@ -16,8 +16,8 @@ interface Step {
 const STEPS: Step[] = [
   {
     id: "connected",
-    label: "Wallet Connected",
-    description: "Ready to initiate payment",
+    label: "Wallet Ready",
+    description: "Payment QR generated — scan it in your wallet",
   },
   {
     id: "pending",

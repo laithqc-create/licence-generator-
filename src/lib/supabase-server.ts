@@ -2,7 +2,7 @@
 // Supabase Server Client — lazy init, server-side only
 // ─────────────────────────────────────────────────────────────────────────────
 import { createClient, SupabaseClient } from "@supabase/supabase-js";
-import type { Subscription, Product } from "@/types";
+import type { Subscription, Product, PaymentInvoice } from "@/types";
 
 let _client: SupabaseClient | null = null;
 
@@ -93,4 +93,55 @@ export async function deactivateSubscription(id: string): Promise<void> {
   const { error } = await getSupabaseAdmin()
     .from("trading_subscriptions").update({ is_active: false }).eq("id", id);
   if (error) throw new Error(`[supabase] deactivateSubscription: ${error.message}`);
+}
+
+// ── Payment invoices (scan-to-pay) ───────────────────────────────────────────
+
+export async function createPaymentInvoice(payload: {
+  product_id:   string;
+  amount_wei:   string;
+  amount_label: string;
+  scan_from_block: number;
+  expires_invoices_at: string;
+}): Promise<PaymentInvoice> {
+  const { data, error } = await getSupabaseAdmin()
+    .from("payment_invoices")
+    .insert({ ...payload, status: "pending" }).select().single();
+  if (error) throw new Error(`[supabase] createPaymentInvoice: ${error.message}`);
+  return data;
+}
+
+export async function getPaymentInvoice(id: string): Promise<PaymentInvoice | null> {
+  const { data, error } = await getSupabaseAdmin()
+    .from("payment_invoices").select("*").eq("id", id).maybeSingle();
+  if (error) throw new Error(`[supabase] getPaymentInvoice: ${error.message}`);
+  return data;
+}
+
+export async function markInvoicePaid(id: string, fields: {
+  wallet_address: string;
+  tx_hash:        string;
+  license_key:    string;
+  expires_at:     string;
+}): Promise<PaymentInvoice> {
+  const { data, error } = await getSupabaseAdmin()
+    .from("payment_invoices")
+    .update({ status: "paid", ...fields }).eq("id", id).select().single();
+  if (error) throw new Error(`[supabase] markInvoicePaid: ${error.message}`);
+  return data;
+}
+
+export async function markInvoiceExpired(id: string): Promise<void> {
+  const { error } = await getSupabaseAdmin()
+    .from("payment_invoices").update({ status: "expired" })
+    .eq("id", id).eq("status", "pending");
+  if (error) throw new Error(`[supabase] markInvoiceExpired: ${error.message}`);
+}
+
+export async function isAmountPending(amountWei: string): Promise<boolean> {
+  const { data, error } = await getSupabaseAdmin()
+    .from("payment_invoices").select("id")
+    .eq("amount_wei", amountWei).eq("status", "pending").maybeSingle();
+  if (error) throw new Error(`[supabase] isAmountPending: ${error.message}`);
+  return !!data;
 }

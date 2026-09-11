@@ -5,11 +5,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { isHex } from "viem";
 import { verifyUsdtTransfer } from "@/lib/tx-verifier";
-import { generateLicenseKey } from "@/lib/license-generator";
 import {
-  getProduct, getSubscriptionByWallet,
-  createSubscription, renewSubscription,
+  getProduct,
 } from "@/lib/supabase-server";
+import { issueOrRenewLicense } from "@/lib/license-service";
 import type { VerifyPaymentResponse } from "@/types";
 
 function isValidAddress(a: string) { return /^0x[0-9a-fA-F]{40}$/.test(a); }
@@ -48,33 +47,17 @@ export async function POST(req: NextRequest) {
 
   if (!verification.valid) return err(verification.reason ?? "Transaction verification failed.", 402);
 
-  // 3. New or returning user?
-  let subscription;
-  try { subscription = await getSubscriptionByWallet(walletAddress, productId); } catch (e) { return err(String(e), 500); }
+  // 3. Issue (new wallet) or renew (returning wallet) using the shared service
+  let result;
+  try { result = await issueOrRenewLicense(walletAddress, product); }
+  catch (e) { return err(String(e), 500); }
 
-  if (!subscription) {
-    // New user
-    const licenseKey = generateLicenseKey();
-    const expiresAt  = new Date(Date.now() + product.duration_days * 86400_000).toISOString();
-    try {
-      const row = await createSubscription({
-        wallet_address: walletAddress.toLowerCase(),
-        license_key:    licenseKey,
-        token_used:     "USDT-BEP20",
-        product_id:     productId,
-        expires_at:     expiresAt,
-      });
-      return ok({ licenseKey: row.license_key, expiresAt: row.expires_at, isNewUser: true,
-        product: { name: product.name, price_usdt: product.price_usdt, duration_days: product.duration_days } });
-    } catch (e) { return err(String(e), 500); }
-  }
-
-  // Returning user — renew
-  try {
-    const row = await renewSubscription(subscription.id, subscription.expires_at, product.duration_days);
-    return ok({ licenseKey: row.license_key, expiresAt: row.expires_at, isNewUser: false,
-      product: { name: product.name, price_usdt: product.price_usdt, duration_days: product.duration_days } });
-  } catch (e) { return err(String(e), 500); }
+  return ok({
+    licenseKey: result.licenseKey,
+    expiresAt:  result.expiresAt,
+    isNewUser:  result.isNewUser,
+    product: { name: product.name, price_usdt: product.price_usdt, duration_days: product.duration_days },
+  });
 }
 
 export async function GET() {

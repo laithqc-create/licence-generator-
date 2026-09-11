@@ -11,25 +11,30 @@ Zero centralized payment gateways. Zero geo-restrictions. Peer-to-peer USDT paym
 ```
 User Wallet
     │
-    │  30 USDT (BEP-20 Transfer)
+    │  A) 30 USDT (BEP-20 Transfer) via connected wallet
+    │  B) Scan-to-Pay: choose wallet (OKX, Binance, …) → EIP-681 QR
+    │     → wallet's own QR scanner pre-fills amount → approve transfer
     ▼
 Admin Wallet ◄──────────────── BNB Smart Chain (BSC)
-                                        │
-                               txHash returned to UI
-                                        │
-                                        ▼
-                            POST /api/verify-payment
-                                        │
-                            viem reads BSC via public RPC
-                            Validates: tx success + contract
-                            + recipient + amount + sender
-                                        │
-                             Supabase (PostgreSQL)
-                            New user → create + issue key
-                            Returning → extend + return key
-                                        │
-                                        ▼
-                              License Key → UI → User
+    │
+    │ A) txHash returned to UI
+    │ B) backend polls recent Transfer logs for the invoice's
+    │    unique amount (base + random cent surcharge)
+    │
+    ▼
+POST /api/verify-payment   (flow A)
+GET  /api/invoices/[id]    (flow B — no txHash required from the buyer)
+    │
+    │ viem reads BSC via public RPC
+    │ Validates: tx success + contract + recipient + amount (+ sender in A)
+    │
+    ▼
+Supabase (PostgreSQL)
+New user → create + issue key
+Returning → extend + return key
+    │
+    ▼
+License Key → UI → User
 
 
 External App (MQL5/EA)
@@ -49,7 +54,7 @@ Server compares Date.now() vs expires_at
 | Layer | Technology | License |
 |---|---|---|
 | Frontend | Next.js 15 + TypeScript + Tailwind CSS | MIT |
-| Wallet SDK | Reown AppKit (WalletConnect v4) | MIT |
+| QR Rendering | `qrcode` (client-side data-URL) | MIT |
 | Wallet Hooks | Wagmi v2 + Viem v2 | MIT |
 | Database | Supabase (PostgreSQL) | Apache 2.0 |
 | Chain Reads | Viem public client (BSC RPC) | MIT |
@@ -63,7 +68,7 @@ Server compares Date.now() vs expires_at
 ## Prerequisites
 
 - Node.js ≥ 18.17
-- A [Reown Cloud](https://cloud.reown.com) account (free) → get a `projectId`
+- A [Reown Cloud](https://cloud.reown.com) account (free) → get a `projectId` (optional — only for legacy instant-connect)
 - A [Supabase](https://supabase.com) project (free tier works)
 - An EVM wallet to receive payments (MetaMask, etc.)
 - A Vercel account for deployment
@@ -80,12 +85,13 @@ cd decentra-license
 npm install
 ```
 
-### 2. Database — Run the SQL Migration
+### 2. Database — Run the SQL Migrations
 
 1. Go to **Supabase Dashboard → SQL Editor → New Query**
-2. Paste the contents of `supabase/migrations/001_trading_subscriptions.sql`
-3. Click **Run**
-4. Verify: you should see the `trading_subscriptions` table in the Table Editor
+2. Paste the contents of `supabase/migrations/001_trading_subscriptions.sql` → **Run**
+3. Paste `supabase/migrations/002_products_and_admin.sql` → **Run**
+4. Paste `supabase/migrations/003_payment_invoices.sql` → **Run**
+5. Verify: you should see `trading_subscriptions`, `products` and `payment_invoices` in the Table Editor
 
 ### 3. Environment Variables
 
@@ -96,8 +102,8 @@ cp .env.local.example .env.local
 Open `.env.local` and fill in:
 
 ```env
-# Reown Cloud — https://cloud.reown.com
-NEXT_PUBLIC_REOWN_PROJECT_ID=your_project_id
+# WalletConnect (optional — enables the instant-pay fallback). Get projectId at cloud.walletconnect.com
+NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID=your_project_id
 
 # Your wallet that receives payments (visible in frontend — safe)
 NEXT_PUBLIC_ADMIN_WALLET_ADDRESS=0xYourWalletHere
@@ -244,6 +250,7 @@ if (res == 200) {
 | Anon key exposure | Supabase RLS blocks all anon/authenticated access; only service role (server-only) can read/write |
 | Key format injection | Regex validation in `isValidLicenseFormat()` before any DB query |
 | Replay attack (same txHash twice) | The DB `wallet_address` unique constraint prevents duplicate rows; second call extends expiry |
+| Cross-checkout payment collision | Each scan-to-pay invoice uses a unique amount (base + random cents); a pending-amount unique index + exact wei match prevents one buyer's payment from licensing another's checkout |
 | Wrong chain | `receipt.to` is checked against the exact USDT contract address |
 | Wrong recipient | Transfer logs are filtered to verify `to === adminWallet` |
 | Insufficient amount | `value >= REQUIRED_AMOUNT` checked in BigInt arithmetic |
@@ -257,27 +264,35 @@ decentra-license/
 ├── src/
 │   ├── app/
 │   │   ├── api/
-│   │   │   ├── verify-payment/route.ts   ← Issues licenses
-│   │   │   └── check-license/route.ts    ← Validates licenses
-│   │   ├── checkout/page.tsx             ← Checkout UI page
+│   │   │   ├── verify-payment/route.ts   ← Contains connected-wallet licensing
+│   │   │   ├── check-license/route.ts    ← Validates licenses
+│   │   │   ├── invoices/route.ts         ← Creates scan-to-pay invoices (EIP-681 QR)
+│   │   │   └── invoices/[id]/route.ts    ← Polls & detects the on-chain payment
+│   │   ├── checkout/[productId]/page.tsx ← Checkout UI page
 │   │   ├── layout.tsx                    ← Root layout + providers
 │   │   ├── page.tsx                      ← Redirects → /checkout
 │   │   └── globals.css
 │   ├── components/
 │   │   ├── AppProviders.tsx              ← Wagmi + QueryClient wrapper
 │   │   ├── CheckoutCard.tsx              ← Main payment UI
+│   │   ├── QrPaymentModal.tsx            ← Scan-to-Pay QR (EIP-681) flow
+│   │   ├── WalletModal.tsx               ← Wallet picker → QR flow
 │   │   ├── LicenseDisplay.tsx            ← License key + copy button
 │   │   ├── StatusIndicator.tsx           ← Step progress tracker
 │   │   └── useCheckoutFlow.ts            ← Payment state machine hook
 │   ├── lib/
 │   │   ├── wagmi-config.ts               ← Reown AppKit singleton
+│   │   ├── eip681.ts                     ← Scan-to-pay URI builder (EIP-681)
+│   │   ├── license-service.ts            ← Shared issue/renew license logic
 │   │   ├── supabase-server.ts            ← DB client + typed helpers
 │   │   ├── tx-verifier.ts                ← On-chain USDT verification
 │   │   └── license-generator.ts          ← Crypto key generation
 │   └── types/index.ts                    ← Shared TypeScript types
 ├── supabase/
 │   └── migrations/
-│       └── 001_trading_subscriptions.sql ← Run this first
+│       ├── 001_trading_subscriptions.sql ← Run this first
+│       ├── 002_products_and_admin.sql    ← Products + admin
+│       └── 003_payment_invoices.sql      ← Scan-to-pay invoices (EIP-681 QR)
 ├── .env.local.example                    ← Copy → .env.local
 ├── next.config.ts
 ├── tailwind.config.ts
