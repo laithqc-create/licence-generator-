@@ -10,7 +10,7 @@ services:
     envVars:
       - key: NODE_ENV
         value: production
-      - key: NEXT_PUBLIC_REOWN_PROJECT_ID
+      - key: NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID
         sync: false
       - key: NEXT_PUBLIC_ADMIN_WALLET_ADDRESS
         sync: false
@@ -21,6 +21,8 @@ services:
       - key: SUPABASE_SERVICE_ROLE_KEY
         sync: false
       - key: BSC_RPC_URL
+        sync: false
+      - key: ADMIN_SECRET
         sync: false
       - key: SUBSCRIPTION_PRICE_WEI
         value: "30000000000000000000"

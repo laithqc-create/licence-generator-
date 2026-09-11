@@ -75,8 +75,15 @@ export function AdminPanel() {
     try {
       await api.fetchProducts().then(setProducts);
       setAuthed(true);
-    } catch {
-      setAuthErr("Wrong secret or server error.");
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "";
+      // fetchProducts throws "Unauthorized or server error" on any non-OK;
+      // the API returns 401 for bad secret, 500 for server/supabase failure.
+      if (msg.includes("Unauthorized")) {
+        setAuthErr("Wrong secret. Check ADMIN_SECRET in Render env vars.");
+      } else {
+        setAuthErr("Server error — check Render logs (Supabase or config).");
+      }
     } finally { setLoading(false); }
   };
 
