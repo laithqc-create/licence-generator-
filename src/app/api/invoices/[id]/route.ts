@@ -67,7 +67,11 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     return NextResponse.json({ success: true, status: "pending" } satisfies InvoiceStatusResponse);
   }
 
-  const fromBlock = Math.max(BigInt(invoice.scan_from_block || 0), latestBlock - SCAN_BACK_BLOCKS);
+  const fromBlock = invoice.scan_from_block != null
+    ? (BigInt(invoice.scan_from_block) > latestBlock - SCAN_BACK_BLOCKS
+        ? BigInt(invoice.scan_from_block)
+        : latestBlock - SCAN_BACK_BLOCKS)
+    : latestBlock - SCAN_BACK_BLOCKS;
   let matched = null;
   try {
     matched = await findUsdtTransferToAdmin(BigInt(invoice.amount_wei), fromBlock, latestBlock);
