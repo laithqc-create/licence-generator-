@@ -59,7 +59,7 @@ export async function POST(req: NextRequest) {
   const amountLabel = `${weiToLabel(amountWei)} USDT`;
 
   // 3. Store the pending invoice.
-  let scanFromBlock = 0n;
+  let scanFromBlock = BigInt(0);
   try {
     const { createPublicClient, http } = await import("viem");
     const { bsc } = await import("viem/chains");
