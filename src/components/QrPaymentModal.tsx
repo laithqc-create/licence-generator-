@@ -71,7 +71,7 @@ export function QrPaymentModal({ product, walletLabel, onClose, onSuccess }: Pro
       const data: CreateInvoiceResponse = await res.json();
       if (!res.ok || !data.success) throw new Error(data.success === false ? data.error : `Server error ${res.status}`);
 
-      const qr = qrcode.toDataURL(data.payUri, {
+      const qr = await qrcode.toDataURL(data.payUri, {
         width: 640, margin: 2,
         errorCorrectionLevel: "M" as const,
       });
