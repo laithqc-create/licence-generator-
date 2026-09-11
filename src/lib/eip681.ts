@@ -65,7 +65,7 @@ export function labelToWei(amount: string): bigint {
 export function addUniqueSurcharge(baseWei: bigint): bigint {
   // 1..99 cents in wei (2 decimals worth of wei per cent)
   const cents = BigInt(1 + Math.floor(Math.random() * 99));
-  return baseWei + cents * 10n ** 16n;
+  return baseWei + cents * BigInt(10) ** BigInt(16);
 }
 
 /**
