@@ -3,13 +3,14 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 export interface Product {
-  id:            string;
-  name:          string;
-  description:   string;
-  price_usdt:    number;
-  duration_days: number;
-  is_active:     boolean;
-  created_at:    string;
+  id:             string;
+  name:           string;
+  description:    string;
+  price_usdt:     number;
+  duration_days:  number;
+  is_active:      boolean;
+  wallet_address: string | null; // BEP-20 wallet that receives USDT for this product (null → env fallback)
+  created_at:     string;
 }
 
 export interface Subscription {
@@ -67,11 +68,12 @@ export type CheckLicenseResponse = CheckLicenseSuccess | CheckLicenseError;
 
 // ── /api/admin/* ──────────────────────────────────────────────────────────────
 export interface CreateProductRequest {
-  id:           string;
-  name:         string;
-  description:  string;
-  price_usdt:   number;
-  duration_days: number;
+  id:             string;
+  name:           string;
+  description:    string;
+  price_usdt:     number;
+  duration_days:  number;
+  wallet_address?: string | null; // receiving BEP-20 wallet — blank defaults to env var
 }
 
 // ── Frontend UI State ─────────────────────────────────────────────────────────
@@ -96,6 +98,7 @@ export interface PaymentInvoice {
   amount_label:       string;   // e.g. "30.00 USDT"
   scan_from_block:    number;
   status:             "pending" | "paid" | "expired";
+  recipient_wallet:   string | null; // the BEP-20 wallet expected to receive the payment
   wallet_address:     string | null;
   tx_hash:            string | null;
   license_key:        string | null;

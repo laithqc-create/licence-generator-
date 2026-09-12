@@ -42,7 +42,7 @@ export async function POST(req: NextRequest) {
   const requiredWei = BigInt(Math.round(product.price_usdt * 1e18));
   let verification;
   try {
-    verification = await verifyUsdtTransfer(txHash as `0x${string}`, walletAddress, requiredWei);
+    verification = await verifyUsdtTransfer(txHash as `0x${string}`, walletAddress, requiredWei, product.wallet_address ?? undefined);
   } catch (e) { return err(`Blockchain query failed: ${String(e)}`, 503); }
 
   if (!verification.valid) return err(verification.reason ?? "Transaction verification failed.", 402);

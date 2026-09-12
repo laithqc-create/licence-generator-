@@ -74,7 +74,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     : latestBlock - SCAN_BACK_BLOCKS;
   let matched = null;
   try {
-    matched = await findUsdtTransferToAdmin(BigInt(invoice.amount_wei), fromBlock, latestBlock);
+    matched = await findUsdtTransferToAdmin(BigInt(invoice.amount_wei), fromBlock, latestBlock, invoice.recipient_wallet ?? undefined);
   } catch {
     return NextResponse.json({ success: true, status: "pending" } satisfies InvoiceStatusResponse);
   }

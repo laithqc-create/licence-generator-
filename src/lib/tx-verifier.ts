@@ -19,9 +19,10 @@ export async function verifyUsdtTransfer(
   txHash: Hex,
   expectedSender: string,
   requiredWei: bigint, // passed from product.price_usdt — no hardcoded amount
+  recipientWallet?: string, // per-product receiving wallet (falls back to env)
 ): Promise<VerificationResult> {
   const rpcUrl       = process.env.BSC_RPC_URL ?? "https://rpc.ankr.com/bsc";
-  const adminWallet  = (process.env.NEXT_PUBLIC_ADMIN_WALLET_ADDRESS  ?? "") as Hex;
+  const adminWallet  = ((recipientWallet ?? "").trim() || (process.env.NEXT_PUBLIC_ADMIN_WALLET_ADDRESS ?? "").trim()) as Hex;
   const usdtContract = (process.env.NEXT_PUBLIC_USDT_CONTRACT_ADDRESS ?? "0x55d398326f99059fF775485246999027B3197955") as Hex;
 
   if (!adminWallet)
@@ -88,9 +89,10 @@ export async function findUsdtTransferToAdmin(
   amountWei: bigint,
   fromBlock: bigint,
   toBlock: bigint,
+  recipientWallet?: string, // per-product receiving wallet (falls back to env)
 ): Promise<ScannedPayment | null> {
   const rpcUrl       = process.env.BSC_RPC_URL ?? "https://rpc.ankr.com/bsc";
-  const adminWallet  = (process.env.NEXT_PUBLIC_ADMIN_WALLET_ADDRESS  ?? "").toLowerCase();
+  const adminWallet  = ((recipientWallet ?? "").trim() || (process.env.NEXT_PUBLIC_ADMIN_WALLET_ADDRESS ?? "").trim()).toLowerCase();
   const usdtContract = (process.env.NEXT_PUBLIC_USDT_CONTRACT_ADDRESS ?? "0x55d398326f99059fF775485246999027B3197955").toLowerCase();
 
   if (!adminWallet)

@@ -39,7 +39,7 @@ export async function POST(req: NextRequest) {
   if (!product)
     return NextResponse.json({ success: false, error: `Product "${productId}" not found.` } satisfies CreateInvoiceResponse, { status: 404 });
 
-  const adminWallet  = (process.env.NEXT_PUBLIC_ADMIN_WALLET_ADDRESS ?? "").trim();
+  const adminWallet  = ((product.wallet_address ?? "").trim() || (process.env.NEXT_PUBLIC_ADMIN_WALLET_ADDRESS ?? "").trim());
   const usdtContract = (process.env.NEXT_PUBLIC_USDT_CONTRACT_ADDRESS ?? DEFAULT_USDT).trim();
   if (!adminWallet || !/^0x[0-9a-fA-F]{40}$/.test(adminWallet))
     return NextResponse.json({ success: false, error: "Server config error: ADMIN wallet address missing or invalid." } satisfies CreateInvoiceResponse, { status: 500 });
@@ -77,6 +77,7 @@ export async function POST(req: NextRequest) {
       amount_wei:   amountWei.toString(),
       amount_label: amountLabel,
       scan_from_block: Number(scanFromBlock),
+      recipient_wallet: adminWallet,
       expires_invoices_at: new Date(Date.now() + INVOICE_TTL_MS).toISOString(),
     });
   } catch (e) {

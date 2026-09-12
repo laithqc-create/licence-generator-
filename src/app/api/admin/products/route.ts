@@ -31,7 +31,7 @@ export async function POST(req: NextRequest) {
   let body: Record<string, unknown>;
   try { body = await req.json(); } catch { return NextResponse.json({ error: "Invalid JSON" }, { status: 400 }); }
 
-  const { id, name, description, price_usdt, duration_days } = body;
+  const { id, name, description, price_usdt, duration_days, wallet_address } = body;
 
   // Validate
   if (!id || typeof id !== "string" || !/^[a-z0-9-]+$/.test(id as string))
@@ -43,14 +43,19 @@ export async function POST(req: NextRequest) {
   if (typeof duration_days !== "number" || duration_days < 1)
     return NextResponse.json({ error: "duration_days must be at least 1" }, { status: 400 });
 
+  const rawWallet = wallet_address === undefined ? "" : String(wallet_address).trim();
+  if (rawWallet && !/^0x[0-9a-fA-F]{40}$/.test(rawWallet))
+    return NextResponse.json({ error: "wallet_address must be a valid 0x address (0x + 40 hex chars)" }, { status: 400 });
+
   try {
     const product = await upsertProduct({
-      id:           id as string,
-      name:         name as string,
-      description:  (description as string) ?? "",
-      price_usdt:   price_usdt as number,
+      id:            id as string,
+      name:          name as string,
+      description:   (description as string) ?? "",
+      price_usdt:    price_usdt as number,
       duration_days: duration_days as number,
-      is_active:    true,
+      is_active:     true,
+      wallet_address: rawWallet || null,
     });
     return NextResponse.json({ product }, { status: 201 });
   } catch (e) {

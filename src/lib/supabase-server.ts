@@ -102,6 +102,7 @@ export async function createPaymentInvoice(payload: {
   amount_wei:   string;
   amount_label: string;
   scan_from_block: number;
+  recipient_wallet: string;
   expires_invoices_at: string;
 }): Promise<PaymentInvoice> {
   const { data, error } = await getSupabaseAdmin()

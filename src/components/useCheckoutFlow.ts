@@ -24,7 +24,6 @@ const ERC20_ABI = [{
 
 const USDT_CONTRACT = (process.env.NEXT_PUBLIC_USDT_CONTRACT_ADDRESS
   ?? "0x55d398326f99059fF775485246999027B3197955") as Hex;
-const ADMIN_WALLET = (process.env.NEXT_PUBLIC_ADMIN_WALLET_ADDRESS ?? "") as Hex;
 
 export function useCheckoutFlow(product: Product) {
   const { address, isConnected, chain } = useAccount();
@@ -75,8 +74,9 @@ export function useCheckoutFlow(product: Product) {
       return;
     }
 
-    if (!ADMIN_WALLET) {
-      setState({ step: "error", errorMessage: "Admin wallet not configured." });
+    const adminWallet = (product.wallet_address ?? process.env.NEXT_PUBLIC_ADMIN_WALLET_ADDRESS ?? "").trim();
+    if (!adminWallet || !/^0x[0-9a-fA-F]{40}$/.test(adminWallet)) {
+      setState({ step: "error", errorMessage: "Admin wallet not configured for this product." });
       return;
     }
 
@@ -88,7 +88,7 @@ export function useCheckoutFlow(product: Product) {
         address: USDT_CONTRACT,
         abi: ERC20_ABI,
         functionName: "transfer",
-        args: [ADMIN_WALLET, amount],
+        args: [adminWallet as Hex, amount],
         chainId: bsc.id,
       });
       setPendingHash(hash);
@@ -102,7 +102,7 @@ export function useCheckoutFlow(product: Product) {
         errorMessage: rejected ? undefined : msg,
       });
     }
-  }, [isConnected, address, isOnBsc, switchChain, writeContractAsync, product.price_usdt]);
+  }, [isConnected, address, isOnBsc, switchChain, writeContractAsync, product.price_usdt, product.wallet_address]);
 
   const verifyWithBackend = useCallback(async (hash: Hex) => {
     if (!address) return;

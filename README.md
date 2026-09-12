@@ -91,7 +91,9 @@ npm install
 2. Paste the contents of `supabase/migrations/001_trading_subscriptions.sql` → **Run**
 3. Paste `supabase/migrations/002_products_and_admin.sql` → **Run**
 4. Paste `supabase/migrations/003_payment_invoices.sql` → **Run**
-5. Verify: you should see `trading_subscriptions`, `products` and `payment_invoices` in the Table Editor
+5. Paste `supabase/migrations/004_products_wallet_address.sql` → **Run** (adds per-product receiving wallet)
+6. Paste `supabase/migrations/005_invoice_recipient_wallet.sql` → **Run** (adds per-invoice recipient wallet for the scanner)
+7. Verify: you should see `trading_subscriptions`, `products` and `payment_invoices` in the Table Editor
 
 ### 3. Environment Variables
 
@@ -106,6 +108,8 @@ Open `.env.local` and fill in:
 NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID=your_project_id
 
 # Your wallet that receives payments (visible in frontend — safe)
+# Optional now: every product can define its own receiving wallet in the admin
+# panel ("Receiving USDT Wallet"). This env var is only the global fallback.
 NEXT_PUBLIC_ADMIN_WALLET_ADDRESS=0xYourWalletHere
 
 # BSC USDT contract (BEP-20) — correct as-is for mainnet

@@ -41,7 +41,7 @@ function useAdminApi(secret: string) {
 }
 
 // ── Empty form state ──────────────────────────────────────────────────────────
-const EMPTY = { id: "", name: "", description: "", price_usdt: 30, duration_days: 30, is_active: true };
+const EMPTY = { id: "", name: "", description: "", price_usdt: 30, duration_days: 30, is_active: true, wallet_address: "" };
 
 // ── Main component ────────────────────────────────────────────────────────────
 export function AdminPanel() {
@@ -94,6 +94,9 @@ export function AdminPanel() {
     if (form.duration_days < 1)     return setFormErr("Duration must be at least 1 day.");
     if (!form.id.trim())            return setFormErr("Product ID is required.");
     if (!/^[a-z0-9-]+$/.test(form.id)) return setFormErr("ID must be lowercase letters, numbers, and hyphens only.");
+    const wallet = form.wallet_address.trim();
+    if (wallet && !/^0x[0-9a-fA-F]{40}$/.test(wallet))
+      return setFormErr("Receiving wallet must be a valid 0x address (0x + 40 hex chars).");
 
     setLoading(true);
     try {
@@ -111,7 +114,8 @@ export function AdminPanel() {
   const handleEdit = (p: Product) => {
     setEditing(p.id);
     setForm({ id: p.id, name: p.name, description: p.description,
-      price_usdt: p.price_usdt, duration_days: p.duration_days, is_active: p.is_active });
+      price_usdt: p.price_usdt, duration_days: p.duration_days, is_active: p.is_active,
+      wallet_address: p.wallet_address ?? "" });
     setFormErr("");
   };
 
@@ -248,6 +252,23 @@ export function AdminPanel() {
                 className="w-full bg-navy-950 border border-navy-700 rounded-xl px-4 py-2.5 text-white text-sm focus:outline-none focus:border-teal-500"
               />
             </div>
+
+            {/* Receiving USDT wallet */}
+            <div className="sm:col-span-2 space-y-1">
+              <label className="text-xs text-slate-400">
+                Receiving USDT Wallet (BEP-20){" "}
+                <span className="text-slate-600">— optional, defaults to the global admin wallet</span>
+              </label>
+              <input
+                value={form.wallet_address}
+                onChange={e => setForm(f => ({ ...f, wallet_address: e.target.value }))}
+                placeholder="0x…"
+                className="w-full bg-navy-950 border border-navy-700 rounded-xl px-4 py-2.5 font-mono text-sm text-white placeholder-slate-600 focus:outline-none focus:border-teal-500"
+              />
+              <p className="text-[11px] text-slate-600">
+                USDT for this product is sent to this address. Leave blank to use NEXT_PUBLIC_ADMIN_WALLET_ADDRESS.
+              </p>
+            </div>
           </div>
 
           {formErr && <p className="text-xs text-red-400">{formErr}</p>}
@@ -297,6 +318,11 @@ export function AdminPanel() {
                   </div>
                   <p className="text-xs text-slate-500 font-mono mb-1">ID: {p.id}</p>
                   {p.description && <p className="text-xs text-slate-400 mb-2">{p.description}</p>}
+                  {p.wallet_address && (
+                    <p className="text-[11px] font-mono text-slate-500 mb-2 truncate" title={p.wallet_address}>
+                      Receives: {p.wallet_address.slice(0, 10)}…{p.wallet_address.slice(-6)}
+                    </p>
+                  )}
                   <div className="flex items-center gap-4 text-xs text-slate-400">
                     <span className="text-teal-400 font-bold">{p.price_usdt} USDT</span>
                     <span>·</span>
