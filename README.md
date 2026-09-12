@@ -104,7 +104,8 @@ cp .env.local.example .env.local
 Open `.env.local` and fill in:
 
 ```env
-# WalletConnect (optional — enables the instant-pay fallback). Get projectId at cloud.walletconnect.com
+# Reown AppKit / WalletConnect — powers the "All wallets" QR (client-side).
+# Get projectId free at cloud.reown.com. Recommended: enables the mobile wallet QR.
 NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID=your_project_id
 
 # Your wallet that receives payments (visible in frontend — safe)

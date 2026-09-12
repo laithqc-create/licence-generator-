@@ -11,6 +11,8 @@
 // ─────────────────────────────────────────────────────────────────────────────
 import { useEffect, useState } from "react";
 import { useConnect } from "wagmi";
+import { useAppKit, useAppKitAccount } from "@reown/appkit/react";
+import { appkitEnabled } from "@/lib/appkit";
 
 interface Props {
   onClose:      () => void;
@@ -176,43 +178,42 @@ export function WalletModal({ onClose, priceUsdt, onPickWallet }: Props) {
             </button>
           ))}
 
-          {/* WalletConnect — all wallets QR */}
-          {!search && wcConnector && (
-                <button
-                  onClick={() => handleConnect(wcConnector.id, "WalletConnect")}
-                  disabled={!!connecting}
-                  className="w-full flex items-center gap-3 px-3 py-3 rounded-xl hover:bg-blue-50 border border-blue-100 transition-colors text-left disabled:opacity-60 mt-1"
-                >
-                  <div className="w-9 h-9 rounded-xl bg-blue-500 flex items-center justify-center flex-shrink-0">
-                    <svg viewBox="0 0 32 32" fill="none" className="w-5 h-5">
-                      <path d="M9.58 11.85c3.54-3.46 9.28-3.46 12.82 0l.43.42a.44.44 0 010 .63l-1.46 1.43a.23.23 0 01-.32 0l-.59-.57c-2.47-2.42-6.48-2.42-8.95 0l-.63.62a.23.23 0 01-.32 0L9.11 12.9a.44.44 0 010-.63l.47-.42zm15.83 2.95l1.3 1.27a.44.44 0 010 .63l-5.86 5.73a.46.46 0 01-.64 0l-4.16-4.07a.12.12 0 00-.16 0l-4.16 4.07a.46.46 0 01-.64 0L5.25 16.7a.44.44 0 010-.63l1.3-1.27a.46.46 0 01.64 0l4.16 4.07c.04.04.12.04.16 0l4.16-4.07a.46.46 0 01.64 0l4.16 4.07c.04.04.12.04.16 0l4.16-4.07a.46.46 0 01.64 0z" fill="white"/>
-                    </svg>
-                  </div>
-                  <div className="flex-1">
-                    <p className="text-sm font-semibold text-gray-900">WalletConnect</p>
-                    <p className="text-xs text-gray-400">
-                      {connecting === "WalletConnect" ? "Opening QR code…" : "400+ wallets via QR code"}
-                    </p>
-                  </div>
-                  {connecting === "WalletConnect" ? (
-                    <svg className="w-4 h-4 text-blue-500 animate-spin" fill="none" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
-                    </svg>
-                  ) : (
-                    <svg className="w-4 h-4 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
-                    </svg>
-                  )}
-                </button>
-              )}
-
-              {/* No WC + no project ID notice */}
-              {!wcConnector && !search && (
-                <p className="text-center text-xs text-gray-400 py-2 px-3">
-                  Enable <code className="bg-gray-100 px-1 rounded">NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID</code> to also add WalletConnect instant-pay support
+          {/* All wallets — Reown AppKit QR (client-side, no backend) */}
+          {!search && (appkitEnabled ? (
+            <AppKitWalletRow onClosed={() => onClose()} />
+          ) : wcConnector ? (
+            <button
+              onClick={() => handleConnect(wcConnector.id, "WalletConnect")}
+              disabled={!!connecting}
+              className="w-full flex items-center gap-3 px-3 py-3 rounded-xl hover:bg-blue-50 border border-blue-100 transition-colors text-left disabled:opacity-60 mt-1"
+            >
+              <div className="w-9 h-9 rounded-xl bg-blue-500 flex items-center justify-center flex-shrink-0">
+                <svg viewBox="0 0 32 32" fill="none" className="w-5 h-5">
+                  <path d="M9.58 11.85c3.54-3.46 9.28-3.46 12.82 0l.43.42a.44.44 0 010 .63l-1.46 1.43a.23.23 0 01-.32 0l-.59-.57c-2.47-2.42-6.48-2.42-8.95 0l-.63.62a.23.23 0 01-.32 0L9.11 12.9a.44.44 0 010-.63l.47-.42zm15.83 2.95l1.3 1.27a.44.44 0 010 .63l-5.86 5.73a.46.46 0 01-.64 0l-4.16-4.07a.12.12 0 00-.16 0l-4.16 4.07a.46.46 0 01-.64 0L5.25 16.7a.44.44 0 010-.63l1.3-1.27a.46.46 0 01.64 0l4.16 4.07c.04.04.12.04.16 0l4.16-4.07a.46.46 0 01.64 0l4.16 4.07c.04.04.12.04.16 0l4.16-4.07a.46.46 0 01.64 0z" fill="white"/>
+                </svg>
+              </div>
+              <div className="flex-1">
+                <p className="text-sm font-semibold text-gray-900">WalletConnect</p>
+                <p className="text-xs text-gray-400">
+                  {connecting === "WalletConnect" ? "Opening QR code…" : "400+ wallets via QR code"}
                 </p>
+              </div>
+              {connecting === "WalletConnect" ? (
+                <svg className="w-4 h-4 text-blue-500 animate-spin" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
+                </svg>
+              ) : (
+                <svg className="w-4 h-4 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+                </svg>
               )}
+            </button>
+          ) : (
+            <p className="text-center text-xs text-gray-400 py-2 px-3">
+              Enable <code className="bg-gray-100 px-1 rounded">NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID</code> (free at cloud.reown.com) to add the all-wallets QR
+            </p>
+          ))}
         </div>
 
         {/* Footer */}
@@ -223,5 +224,51 @@ export function WalletModal({ onClose, priceUsdt, onPickWallet }: Props) {
         </div>
       </div>
     </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Reown AppKit — "All wallets" row
+// AppKit's QR is generated fully client-side (no backend), so a QR always
+// appears even if the server / Supabase is having issues. Once a wallet is
+// connected, wagmi drives the "Pay X USDT" direct-transfer flow.
+// ─────────────────────────────────────────────────────────────────────────────
+function AppKitWalletRow({ onClosed }: { onClosed: () => void }) {
+  const { open }        = useAppKit();
+  const { isConnected } = useAppKitAccount();
+  const [opening, setOpening] = useState(false);
+
+  useEffect(() => {
+    if (isConnected) onClosed();
+  }, [isConnected, onClosed]);
+
+  return (
+    <button
+      onClick={() => { setOpening(true); void open().finally(() => setOpening(false)); }}
+      disabled={opening}
+      className="w-full flex items-center gap-3 px-3 py-3 rounded-xl hover:bg-blue-50 border border-blue-100 transition-colors text-left disabled:opacity-60 mt-1"
+    >
+      <div className="w-9 h-9 rounded-xl bg-blue-500 flex items-center justify-center flex-shrink-0">
+        <svg viewBox="0 0 32 32" fill="none" className="w-5 h-5">
+          <path d="M9.58 11.85c3.54-3.46 9.28-3.46 12.82 0l.43.42a.44.44 0 010 .63l-1.46 1.43a.23.23 0 01-.32 0l-.59-.57c-2.47-2.42-6.48-2.42-8.95 0l-.63.62a.23.23 0 01-.32 0L9.11 12.9a.44.44 0 010-.63l.47-.42zm15.83 2.95l1.3 1.27a.44.44 0 010 .63l-5.86 5.73a.46.46 0 01-.64 0l-4.16-4.07a.12.12 0 00-.16 0l-4.16 4.07a.46.46 0 01-.64 0L5.25 16.7a.44.44 0 010-.63l1.3-1.27a.46.46 0 01.64 0l4.16 4.07c.04.04.12.04.16 0l4.16-4.07a.46.46 0 01.64 0l4.16 4.07c.04.04.12.04.16 0l4.16-4.07a.46.46 0 01.64 0z" fill="white"/>
+        </svg>
+      </div>
+      <div className="flex-1">
+        <p className="text-sm font-semibold text-gray-900">All wallets</p>
+        <p className="text-xs text-gray-400">
+          {opening ? "Opening…" : "QR · 400+ wallets (Reown AppKit)"}
+        </p>
+      </div>
+      {opening ? (
+        <svg className="w-4 h-4 text-blue-500 animate-spin" fill="none" viewBox="0 0 24 24">
+          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
+        </svg>
+      ) : (
+        <svg className="w-4 h-4 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+        </svg>
+      )}
+    </button>
   );
 }
