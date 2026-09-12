@@ -4,9 +4,9 @@ services:
     runtime: node
     region: oregon
     plan: free
-    buildCommand: npm install --legacy-peer-deps && npm run build
-    startCommand: npm run start
-    nodeVersion: "20"
+    buildCommand: yarn install --ignore-engines --non-interactive && yarn run build
+    startCommand: yarn run start
+    nodeVersion: "22"
     envVars:
       - key: NODE_ENV
         value: production
