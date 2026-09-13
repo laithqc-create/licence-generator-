@@ -11,7 +11,7 @@ services:
       - key: NODE_ENV
         value: production
       - key: NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID
-        sync: false
+        value: ce047f0e9edb979df81e960a5baae7c2
       - key: NEXT_PUBLIC_ADMIN_WALLET_ADDRESS
         sync: false
       - key: NEXT_PUBLIC_USDT_CONTRACT_ADDRESS

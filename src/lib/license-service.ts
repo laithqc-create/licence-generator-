@@ -1,7 +1,6 @@
 // ─────────────────────────────────────────────────────────────────────────────
-// License service — shared issue/renew logic used by both
-//   /api/verify-payment  (connected-wallet flow)
-//   /api/invoices/[id]   (scan-to-pay QR flow)
+// License service — shared issue/renew logic used by
+//   /api/verify-payment  (wallet-connected USDT transfer flow)
 // ─────────────────────────────────────────────────────────────────────────────
 import { generateLicenseKey } from "@/lib/license-generator";
 import {

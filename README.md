@@ -11,27 +11,22 @@ Zero centralized payment gateways. Zero geo-restrictions. Peer-to-peer USDT paym
 ```
 User Wallet
     │
-    │  A) 30 USDT (BEP-20 Transfer) via connected wallet
-    │  B) Scan-to-Pay: choose wallet (OKX, Binance, …) → EIP-681 QR
-    │     → wallet's own QR scanner pre-fills amount → approve transfer
+    │  Reown AppKit wallet-connect QR (all wallets) or browser extension
+    │  → wallet connects (mobile: app-to-app) → user approves the
+    │    USDT (BEP-20) Transfer to the product's receiving wallet
     ▼
-Admin Wallet ◄──────────────── BNB Smart Chain (BSC)
+Wallet approves: 30 USDT → Admin/Product Wallet ◄── BNB Smart Chain (BSC)
     │
-    │ A) txHash returned to UI
-    │ B) backend polls recent Transfer logs for the invoice's
-    │    unique amount (base + random cent surcharge)
-    │
+    │ txHash returned to UI
     ▼
-POST /api/verify-payment   (flow A)
-GET  /api/invoices/[id]    (flow B — no txHash required from the buyer)
+POST /api/verify-payment { txHash, walletAddress, productId }
     │
     │ viem reads BSC via public RPC
-    │ Validates: tx success + contract + recipient + amount (+ sender in A)
-    │
+    │ Validates: tx success + USDT contract + recipient + amount + sender
     ▼
 Supabase (PostgreSQL)
-New user → create + issue key
-Returning → extend + return key
+New user → create + issue key (start = created_at, end = expires_at)
+Returning → extend expiry + return key
     │
     ▼
 License Key → UI → User
@@ -43,7 +38,7 @@ External App (MQL5/EA)
     ▼
 Server compares Date.now() vs expires_at
     │
-    ├─ Valid  → 200 OK
+    ├─ Valid   → 200 OK
     └─ Expired → deactivate record → 403 Forbidden
 ```
 
@@ -54,12 +49,12 @@ Server compares Date.now() vs expires_at
 | Layer | Technology | License |
 |---|---|---|
 | Frontend | Next.js 15 + TypeScript + Tailwind CSS | MIT |
-| QR Rendering | `qrcode` (client-side data-URL) | MIT |
+| Wallet Connect / QR | Reown AppKit (client-side QR, 400+ wallets) | Apache 2.0 |
 | Wallet Hooks | Wagmi v2 + Viem v2 | MIT |
 | Database | Supabase (PostgreSQL) | Apache 2.0 |
 | Chain Reads | Viem public client (BSC RPC) | MIT |
 | Key Generation | Node.js `crypto` (built-in) | — |
-| Deployment | Vercel (serverless functions) | — |
+| Deployment | Render (Node service) | — |
 
 **No Stripe. No Whop. No PayPal. No centralized gateway.**
 
@@ -67,11 +62,10 @@ Server compares Date.now() vs expires_at
 
 ## Prerequisites
 
-- Node.js ≥ 18.17
-- A [Reown Cloud](https://cloud.reown.com) account (free) → get a `projectId` (optional — only for legacy instant-connect)
+- Node.js ≥ 22
+- A [Reown Cloud](https://cloud.reown.com) account (free) → get a `projectId` (**required** for the mobile-wallet QR / all-wallets flow)
 - A [Supabase](https://supabase.com) project (free tier works)
 - An EVM wallet to receive payments (MetaMask, etc.)
-- A Vercel account for deployment
 
 ---
 
@@ -90,10 +84,10 @@ npm install
 1. Go to **Supabase Dashboard → SQL Editor → New Query**
 2. Paste the contents of `supabase/migrations/001_trading_subscriptions.sql` → **Run**
 3. Paste `supabase/migrations/002_products_and_admin.sql` → **Run**
-4. Paste `supabase/migrations/003_payment_invoices.sql` → **Run**
-5. Paste `supabase/migrations/004_products_wallet_address.sql` → **Run** (adds per-product receiving wallet)
-6. Paste `supabase/migrations/005_invoice_recipient_wallet.sql` → **Run** (adds per-invoice recipient wallet for the scanner)
-7. Verify: you should see `trading_subscriptions`, `products` and `payment_invoices` in the Table Editor
+4. Paste `supabase/migrations/004_products_wallet_address.sql` → **Run** (adds per-product receiving wallet)
+5. Verify: you should see `trading_subscriptions` and `products` in the Table Editor
+
+> `003_payment_invoices.sql` and `005_invoice_recipient_wallet.sql` are **legacy** (the old scan-to-pay invoice flow was removed in favor of AppKit). They are harmless if already applied and can be skipped on fresh databases.
 
 ### 3. Environment Variables
 

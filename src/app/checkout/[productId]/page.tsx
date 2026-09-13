@@ -57,9 +57,9 @@ export default async function ProductCheckoutPage({ params }: Props) {
         {/* How it works */}
         <div className="grid grid-cols-3 gap-2 text-center">
           {[
-            { n: "1", label: "Pick",   desc: "Your wallet" },
-            { n: "2", label: "Scan",   desc: `${product.price_usdt}+ USDT` },
-            { n: "3", label: "Receive", desc: "License key" },
+            { n: "1", label: "Connect",  desc: "Scan QR with your wallet" },
+            { n: "2", label: "Approve",  desc: `${product.price_usdt} USDT in-wallet` },
+            { n: "3", label: "Receive",  desc: "License key" },
           ].map(s => (
             <div key={s.n} className="rounded-xl border border-navy-700 bg-navy-900/40 px-3 py-3">
               <div className="w-6 h-6 rounded-full bg-teal-500/20 text-teal-400 text-xs font-bold flex items-center justify-center mx-auto mb-1">{s.n}</div>
@@ -86,7 +86,7 @@ export default async function ProductCheckoutPage({ params }: Props) {
           <div>
             <p className="text-xs font-semibold text-white">Renewal</p>
             <p className="text-xs text-slate-500 mt-0.5 leading-relaxed">
-              Reconnect the same wallet after expiry and pay again with a new QR. Your license key is preserved — expiry extends by {product.duration_days} days.
+              Reconnect the same wallet after expiry and pay again — your license key is preserved and the expiry extends by {product.duration_days} days.
             </p>
           </div>
         </div>

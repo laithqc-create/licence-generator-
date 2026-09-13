@@ -17,7 +17,8 @@ import { createAppKit } from "@reown/appkit/react";
 import { bsc, type AppKitNetwork } from "@reown/appkit/networks";
 import { http } from "wagmi";
 
-export const appkitProjectId = process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID ?? "";
+export const appkitProjectId =
+  process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID || "ce047f0e9edb979df81e960a5baae7c2";
 export const appkitEnabled   = appkitProjectId.length > 0;
 
 const networks = [bsc] as [AppKitNetwork, ...AppKitNetwork[]];

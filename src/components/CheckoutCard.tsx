@@ -4,14 +4,12 @@ import { useCheckoutFlow }  from "./useCheckoutFlow";
 import { LicenseDisplay }   from "./LicenseDisplay";
 import { StatusIndicator }  from "./StatusIndicator";
 import { WalletModal }      from "./WalletModal";
-import { QrPaymentModal }   from "./QrPaymentModal";
 import type { Product }     from "@/types";
 
 interface Props { product: Product; }
 
 export function CheckoutCard({ product }: Props) {
   const [showModal, setShowModal] = useState(false);
-  const [qrWallet, setQrWallet]   = useState<string | null>(null);
   const {
     state, setState, disconnect, executePurchase, reset,
     isConnected, isOnBsc, address,
@@ -19,18 +17,6 @@ export function CheckoutCard({ product }: Props) {
 
   const isLoading = ["pending","confirming","verifying"].includes(state.step);
   const truncated = address ? `${address.slice(0,6)}…${address.slice(-4)}` : null;
-
-  const handleQrSuccess = (data: { licenseKey: string; expiresAt: string; isNewUser: boolean; txHash: string }) => {
-    setQrWallet(null);
-    setShowModal(false);
-    setState({
-      step: "success",
-      licenseKey: data.licenseKey,
-      expiresAt:  data.expiresAt,
-      isNewUser:  data.isNewUser,
-      txHash:     data.txHash || undefined,
-    });
-  };
 
   if (state.step === "success" && state.licenseKey && state.expiresAt) {
     return (
@@ -52,16 +38,6 @@ export function CheckoutCard({ product }: Props) {
         <WalletModal
           priceUsdt={product.price_usdt}
           onClose={() => setShowModal(false)}
-          onPickWallet={(label) => { setShowModal(false); setQrWallet(label); }}
-        />
-      )}
-
-      {qrWallet && (
-        <QrPaymentModal
-          product={product}
-          walletLabel={qrWallet}
-          onClose={() => setQrWallet(null)}
-          onSuccess={handleQrSuccess}
         />
       )}
 
@@ -92,9 +68,8 @@ export function CheckoutCard({ product }: Props) {
         </div>
       )}
 
-      {/* Status steps — show pending/verifying during live payments, and the
-          awaiting-payment step while the QR screen is open */}
-      {(!["idle","connected","error"].includes(state.step) || (qrWallet && state.step === "connected")) && (
+      {/* Status steps — show pending/verifying during live payments */}
+      {!["idle","connected","error"].includes(state.step) && (
         <StatusIndicator step={state.step} txHash={state.txHash} />
       )}
 
