@@ -40,7 +40,7 @@ export async function upsertProduct(product: Omit<Product, "created_at">): Promi
 
 export async function deleteProduct(id: string): Promise<void> {
   const { error } = await getSupabaseAdmin()
-    .from("products").update({ is_active: false }).eq("id", id);
+    .from("products").delete().eq("id", id);
   if (error) throw new Error(`[supabase] deleteProduct: ${error.message}`);
 }
 

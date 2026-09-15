@@ -85,7 +85,8 @@ npm install
 2. Paste the contents of `supabase/migrations/001_trading_subscriptions.sql` → **Run**
 3. Paste `supabase/migrations/002_products_and_admin.sql` → **Run**
 4. Paste `supabase/migrations/004_products_wallet_address.sql` → **Run** (adds per-product receiving wallet)
-5. Verify: you should see `trading_subscriptions` and `products` in the Table Editor
+5. Paste `supabase/migrations/006_product_hard_delete.sql` → **Run** (allows the admin Delete button to hard-delete products)
+6. Verify: you should see `trading_subscriptions` and `products` in the Table Editor
 
 > `003_payment_invoices.sql` and `005_invoice_recipient_wallet.sql` are **legacy** (the old scan-to-pay invoice flow was removed in favor of AppKit). They are harmless if already applied and can be skipped on fresh databases.
 

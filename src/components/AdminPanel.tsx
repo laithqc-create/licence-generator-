@@ -120,7 +120,7 @@ export function AdminPanel() {
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm(`Deactivate product "${id}"?`)) return;
+    if (!confirm(`Delete product "${id}"? This permanently removes it and cannot be undone.`)) return;
     try { await api.deleteProduct(id); await loadProducts(); } catch { /**/ }
   };
 
