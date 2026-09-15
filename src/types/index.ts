@@ -8,6 +8,7 @@ export interface Product {
   description:    string;
   price_usdt:     number;
   duration_days:  number;
+  trial_days:     number; // free trial in days (0 = no trial) — one per wallet per product
   is_active:      boolean;
   wallet_address: string | null; // BEP-20 wallet that receives USDT for this product (null → env fallback)
   created_at:     string;
@@ -73,6 +74,7 @@ export interface CreateProductRequest {
   description:    string;
   price_usdt:     number;
   duration_days:  number;
+  trial_days?:    number; // free trial in days (0 = none)
   wallet_address?: string | null; // receiving BEP-20 wallet — blank defaults to env var
 }
 

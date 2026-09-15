@@ -17,6 +17,30 @@ export function CheckoutCard({ product }: Props) {
 
   const isLoading = ["pending","confirming","verifying"].includes(state.step);
   const truncated = address ? `${address.slice(0,6)}…${address.slice(-4)}` : null;
+  const trialDays = product.trial_days > 0 ? product.trial_days : null;
+
+  const handleStartTrial = async () => {
+    if (!address || !trialDays) return;
+    try {
+      setState({ step: "verifying" });
+      const res = await fetch("/api/start-trial", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ productId: product.id, walletAddress: address }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success)
+        throw new Error(data.success === false ? data.error : `Server error ${res.status}`);
+      setState({
+        step: "success",
+        licenseKey: data.licenseKey,
+        expiresAt:  data.expiresAt,
+        isNewUser:  true,
+      });
+    } catch (e) {
+      setState({ step: "error", errorMessage: e instanceof Error ? e.message : "Could not start free trial." });
+    }
+  };
 
   if (state.step === "success" && state.licenseKey && state.expiresAt) {
     return (
@@ -129,6 +153,23 @@ export function CheckoutCard({ product }: Props) {
           </svg>
           {state.step === "error" ? "Retry Payment" : `Pay ${product.price_usdt} USDT`}
         </button>
+      )}
+
+      {/* Free trial */}
+      {trialDays && !isLoading && (
+        isConnected ? (
+          <button
+            onClick={handleStartTrial}
+            className="w-full flex items-center justify-center gap-2 px-6 py-3.5 rounded-xl font-semibold text-sm bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 hover:bg-emerald-500/25 transition-all"
+          >
+            ⚡ Start {trialDays}-day free trial
+            <span className="text-emerald-400/70 text-xs">no payment needed</span>
+          </button>
+        ) : (
+          <p className="text-center text-xs text-slate-500">
+            ⚡ Free trial available — connect your wallet, then tap “Start free trial”
+          </p>
+        )
       )}
 
       <div className="flex items-center justify-center gap-5 pt-1">

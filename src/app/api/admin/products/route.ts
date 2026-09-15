@@ -31,7 +31,7 @@ export async function POST(req: NextRequest) {
   let body: Record<string, unknown>;
   try { body = await req.json(); } catch { return NextResponse.json({ error: "Invalid JSON" }, { status: 400 }); }
 
-  const { id, name, description, price_usdt, duration_days, wallet_address } = body;
+  const { id, name, description, price_usdt, duration_days, wallet_address, trial_days } = body;
 
   // Validate
   if (!id || typeof id !== "string" || !/^[a-z0-9-]+$/.test(id as string))
@@ -42,6 +42,10 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "price_usdt must be a positive number" }, { status: 400 });
   if (typeof duration_days !== "number" || duration_days < 1)
     return NextResponse.json({ error: "duration_days must be at least 1" }, { status: 400 });
+
+  const trialRaw = trial_days === undefined ? 0 : trial_days;
+  if (typeof trialRaw !== "number" || !Number.isInteger(trialRaw) || trialRaw < 0)
+    return NextResponse.json({ error: "trial_days must be a whole number 0 or greater" }, { status: 400 });
 
   const rawWallet = wallet_address === undefined ? "" : String(wallet_address).trim();
   if (rawWallet && !/^0x[0-9a-fA-F]{40}$/.test(rawWallet))
@@ -56,6 +60,7 @@ export async function POST(req: NextRequest) {
       duration_days: duration_days as number,
       is_active:     true,
       wallet_address: rawWallet || null,
+      trial_days:    trialRaw as number,
     });
     return NextResponse.json({ product }, { status: 201 });
   } catch (e) {

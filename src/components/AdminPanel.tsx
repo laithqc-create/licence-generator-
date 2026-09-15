@@ -41,7 +41,7 @@ function useAdminApi(secret: string) {
 }
 
 // ── Empty form state ──────────────────────────────────────────────────────────
-const EMPTY = { id: "", name: "", description: "", price_usdt: 30, duration_days: 30, is_active: true, wallet_address: "" };
+const EMPTY = { id: "", name: "", description: "", price_usdt: 30, duration_days: 30, is_active: true, wallet_address: "", trial_days: 0 };
 
 // ── Main component ────────────────────────────────────────────────────────────
 export function AdminPanel() {
@@ -92,6 +92,8 @@ export function AdminPanel() {
     if (!form.name.trim())          return setFormErr("Name is required.");
     if (form.price_usdt <= 0)       return setFormErr("Price must be greater than 0.");
     if (form.duration_days < 1)     return setFormErr("Duration must be at least 1 day.");
+    if (form.trial_days < 0 || !Number.isInteger(form.trial_days))
+      return setFormErr("Trial days must be a whole number 0 or greater.");
     if (!form.id.trim())            return setFormErr("Product ID is required.");
     if (!/^[a-z0-9-]+$/.test(form.id)) return setFormErr("ID must be lowercase letters, numbers, and hyphens only.");
     const wallet = form.wallet_address.trim();
@@ -115,7 +117,7 @@ export function AdminPanel() {
     setEditing(p.id);
     setForm({ id: p.id, name: p.name, description: p.description,
       price_usdt: p.price_usdt, duration_days: p.duration_days, is_active: p.is_active,
-      wallet_address: p.wallet_address ?? "" });
+      wallet_address: p.wallet_address ?? "", trial_days: p.trial_days ?? 0 });
     setFormErr("");
   };
 
@@ -242,6 +244,24 @@ export function AdminPanel() {
               </div>
             </div>
 
+            {/* Free trial */}
+            <div className="space-y-1">
+              <label className="text-xs text-slate-400">
+                Free Trial (days){" "}
+                <span className="text-slate-600">— 0 = no trial</span>
+              </label>
+              <div className="relative">
+                <input
+                  type="number" min="0" step="1"
+                  value={form.trial_days}
+                  onChange={e => setForm(f => ({ ...f, trial_days: parseInt(e.target.value) || 0 }))}
+                  className="w-full bg-navy-950 border border-navy-700 rounded-xl px-4 py-2.5 pr-16 text-white text-sm focus:outline-none focus:border-teal-500"
+                />
+                <span className="absolute right-4 top-1/2 -translate-y-1/2 text-xs text-slate-400">days</span>
+              </div>
+              <p className="text-[11px] text-slate-600">One free trial per wallet — no payment needed to start.</p>
+            </div>
+
             {/* Description */}
             <div className="sm:col-span-2 space-y-1">
               <label className="text-xs text-slate-400">Description (optional)</label>
@@ -327,6 +347,7 @@ export function AdminPanel() {
                     <span className="text-teal-400 font-bold">{p.price_usdt} USDT</span>
                     <span>·</span>
                     <span>{p.duration_days} days</span>
+                    {p.trial_days > 0 && <span className="text-emerald-400">⚡ {p.trial_days}-day trial</span>}
                   </div>
                 </div>
 
