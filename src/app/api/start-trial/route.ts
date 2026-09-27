@@ -55,14 +55,23 @@ export async function POST(req: NextRequest) {
     // 3. Issue the trial license
     const licenseKey = generateLicenseKey();
     const expiresAt  = new Date(Date.now() + trialDays * 86400_000).toISOString();
-    const row = await createSubscription({
-      wallet_address: walletAddress.toLowerCase(),
-      license_key:    licenseKey,
-      token_used:     "TRIAL",
-      product_id:     product.id,
-      expires_at:     expiresAt,
-      max_devices:    Math.max(0, product.max_devices ?? 2),
-    });
+    let row;
+    try {
+      row = await createSubscription({
+        wallet_address: walletAddress.toLowerCase(),
+        license_key:    licenseKey,
+        token_used:     "TRIAL",
+        product_id:     product.id,
+        expires_at:     expiresAt,
+        max_devices:    Math.max(0, product.max_devices ?? 2),
+      });
+    } catch (e) {
+      // Double-click / race: the wallet already claimed the trial (or has a row).
+      if (String(e).includes("duplicate key")) {
+        return err("The free trial has already been claimed for this wallet.", 409);
+      }
+      return err(String(e), 500);
+    }
 
     return NextResponse.json({
       success: true,

@@ -88,7 +88,8 @@ npm install
 5. Paste `supabase/migrations/006_product_hard_delete.sql` → **Run** (allows the admin Delete button to hard-delete products)
 6. Paste `supabase/migrations/007_product_trial_days.sql` → **Run** (adds the per-product free-trial field)
 7. Paste `supabase/migrations/008_license_devices.sql` → **Run** (adds the device-lock table + `max_devices`)
-8. Verify: you should see `trading_subscriptions` and `products` in the Table Editor
+8. Paste `supabase/migrations/009_subscription_wallet_product_unique.sql` → **Run** (one subscription per wallet **per product**)
+9. Verify: you should see `trading_subscriptions`, `products` and `license_devices` in the Table Editor
 
 > `003_payment_invoices.sql` and `005_invoice_recipient_wallet.sql` are **legacy** (the old scan-to-pay invoice flow was removed in favor of AppKit). They are harmless if already applied and can be skipped on fresh databases.
 

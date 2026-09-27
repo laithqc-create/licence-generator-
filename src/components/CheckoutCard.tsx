@@ -30,11 +30,13 @@ export function CheckoutCard({ product }: Props) {
 
     if (!isConnected) { autoPayFired.current = false; return; }
 
-    if (!trialDays && isOnBsc && state.step === "connected" && !autoPayFired.current) {
+    // Wait until wagmi reports connected + address on BSC, then fire ONCE.
+    // (No state.step check here — the step syncs on a different render tick.)
+    if (!autoPayFired.current && isOnBsc && address && !trialDays) {
       autoPayFired.current = true;
       void executePurchase();
     }
-  }, [isConnected, isOnBsc, state.step, executePurchase, trialDays, showModal]);
+  }, [isConnected, isOnBsc, address, executePurchase, trialDays, showModal]);
 
   const handleStartTrial = async () => {
     if (!address || !trialDays) return;
