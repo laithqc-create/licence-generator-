@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useCheckoutFlow }  from "./useCheckoutFlow";
 import { LicenseDisplay }   from "./LicenseDisplay";
 import { StatusIndicator }  from "./StatusIndicator";
@@ -18,6 +18,23 @@ export function CheckoutCard({ product }: Props) {
   const isLoading = ["pending","confirming","verifying"].includes(state.step);
   const truncated = address ? `${address.slice(0,6)}…${address.slice(-4)}` : null;
   const trialDays = product.trial_days > 0 ? product.trial_days : null;
+
+  // ── After the wallet connects (QR picker / AppKit): close the modal and
+  //    auto-request the USDT transfer so "scan → approve → license" is one flow.
+  //    autoPayFired is seeded with the current state so a returning visitor with
+  //    an already-connected wallet is NOT auto-charged on page load.
+  const autoPayFired = useRef(isConnected);
+
+  useEffect(() => {
+    if (isConnected && showModal) setShowModal(false);
+
+    if (!isConnected) { autoPayFired.current = false; return; }
+
+    if (!trialDays && isOnBsc && state.step === "connected" && !autoPayFired.current) {
+      autoPayFired.current = true;
+      void executePurchase();
+    }
+  }, [isConnected, isOnBsc, state.step, executePurchase, trialDays, showModal]);
 
   const handleStartTrial = async () => {
     if (!address || !trialDays) return;

@@ -142,12 +142,13 @@ export function WalletModal({ onClose, priceUsdt }: Props) {
 // ─────────────────────────────────────────────────────────────────────────────
 function AppKitWalletRow({ onClosed }: { onClosed: () => void }) {
   const { open }        = useAppKit();
-  const { isConnected } = useAppKitAccount();
+  const { isConnected, address } = useAppKitAccount();
   const [opening, setOpening] = useState(false);
 
   useEffect(() => {
-    if (isConnected) onClosed();
-  }, [isConnected, onClosed]);
+    // Close our wallet picker as soon as a wallet is connected (address set)
+    if (isConnected || (address && address.length > 0)) onClosed();
+  }, [isConnected, address, onClosed]);
 
   return (
     <button
