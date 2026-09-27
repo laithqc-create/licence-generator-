@@ -16,6 +16,11 @@
 #define LICENSE_TIMEOUT  10000   // ms — max wait per HTTP request
 #define RECHECK_BARS     500     // re-validate every N completed bars
 
+// Include the generic, reusable license gate snippet
+#define DL_API_URL  LICENSE_API_URL
+#define DL_TIMEOUT  LICENSE_TIMEOUT
+#include "include/DecentraLicense.mqh"
+
 //--- Input Parameters
 input group "══════════ License ══════════"
 input string InpLicenseKey = "TRD-XXXX-XXXX-XXXX-XXXX"; // Your License Key
@@ -64,118 +69,21 @@ bool   g_licenseValid   = false;
 int    g_barsSinceCheck = 0;
 
 //+------------------------------------------------------------------+
-//| Stable device fingerprint for the license device lock            |
-//| Same terminal + account → same ID (even across restarts).        |
-//| Changing PC / reinstalling MT5 / different broker account →      |
-//| different ID — admin can "Reset devices" for the license.        |
-//+------------------------------------------------------------------+
-string GetDeviceID()
-{
-    string raw = IntegerToString(AccountInfoInteger(ACCOUNT_LOGIN)) + "|" +
-                 TerminalInfoString(TERMINAL_NAME) + "|" +
-                 TerminalInfoString(TERMINAL_PATH) + "|" +
-                 AccountInfoString(ACCOUNT_SERVER);
-    return IntegerToString(StringHash(raw), 16);
-}
-
-//+------------------------------------------------------------------+
-//| License validation — sends POST to /api/check-license            |
-//| Returns true only when the server returns HTTP 200 + valid:true  |
+//| License validation — delegates to DecentraLicense.mqh snippet    |
+//| Reusable for ANY indicator or EA you build.                      |
 //+------------------------------------------------------------------+
 bool ValidateLicense(const string key)
 {
-    //--- Basic local format check before hitting the network
-    //    Expected: TRD-XXXX-XXXX-XXXX-XXXX  (19 chars, uppercase hex)
-    if(StringLen(key) != 19)
+    bool ok = dl_Validate(key);
+    if(ok)
     {
-        Print("[License] Invalid key format — expected 19 characters, got ",
-              StringLen(key));
-        return false;
+        Print("[License] Valid ✓  Expires: ", dl_LastExpiry());
     }
-
-    string prefix = StringSubstr(key, 0, 4);
-    if(prefix != "TRD-")
+    else
     {
-        Print("[License] Invalid key format — must start with TRD-");
-        return false;
+        Print("[License] Rejected: ", dl_LastError(), " (HTTP ", dl_LastHttp(), ")");
     }
-
-    //--- Validate each hex segment: positions 4,9,14,19 are dashes
-    int dashPos[3] = {8, 13, 18};
-    for(int d = 0; d < 3; d++)
-    {
-        if(StringGetCharacter(key, dashPos[d]) != '-')
-        {
-            Print("[License] Invalid key format — missing dash at position ",
-                  dashPos[d]);
-            return false;
-        }
-    }
-
-    //--- Build JSON body (+ device fingerprint for the device lock)
-    string body    = "{\"licenseKey\":\"" + key + "\",\"deviceId\":\"" + GetDeviceID() + "\"}";
-    string headers = "Content-Type: application/json\r\n";
-
-    char   postData[];
-    char   resultData[];
-    string responseHeaders;
-
-    int bodyLen = StringToCharArray(body, postData, 0, WHOLE_ARRAY, CP_UTF8) - 1;
-    ArrayResize(postData, bodyLen);
-
-    //--- Send the request
-    int httpCode = WebRequest(
-        "POST",
-        LICENSE_API_URL,
-        headers,
-        LICENSE_TIMEOUT,
-        postData,
-        resultData,
-        responseHeaders
-    );
-
-    //--- Network / config error
-    if(httpCode == -1)
-    {
-        int err = GetLastError();
-        Print("[License] WebRequest failed (error ", err, "). "
-              "If error=4014, add '", LICENSE_API_URL,
-              "' to Tools → Options → Expert Advisors → Allowed URLs.");
-        return false;
-    }
-
-    //--- Server responded — parse minimal JSON
-    string response = CharArrayToString(resultData, 0, WHOLE_ARRAY, CP_UTF8);
-
-    if(httpCode == 200 && StringFind(response, "\"valid\":true") >= 0)
-    {
-        //--- Extract expiresAt for the log (optional, non-critical)
-        string expiresAt = "";
-        int    eIdx      = StringFind(response, "\"expiresAt\":\"");
-        if(eIdx >= 0)
-        {
-            int start = eIdx + 13;
-            int end   = StringFind(response, "\"", start);
-            if(end > start)
-                expiresAt = StringSubstr(response, start, end - start);
-        }
-        Print("[License] Valid ✓  Expires: ", expiresAt);
-        return true;
-    }
-
-    //--- Extract error message for the log
-    string errMsg = "unknown";
-    int    mIdx   = StringFind(response, "\"error\":\"");
-    if(mIdx >= 0)
-    {
-        int start = mIdx + 9;
-        int end   = StringFind(response, "\"", start);
-        if(end > start)
-            errMsg = StringSubstr(response, start, end - start);
-    }
-
-    Print("[License] Rejected (HTTP ", httpCode, "): ", errMsg);
-    return false;
+    return ok;
 }
 
 //+------------------------------------------------------------------+

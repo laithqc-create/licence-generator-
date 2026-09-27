@@ -219,6 +219,81 @@ Validates a license key from an external application (e.g., MQL5 EA).
 
 ## MQL5 Integration Example
 
+## Client Integration Snippets
+
+The backend does not care what software consumes the license — it only exposes `POST /api/check-license`. Drop one of these into any product you build:
+
+### 1. MetaTrader 5 (MQL5 — Indicators & Expert Advisors)
+
+Drop `mql5/include/DecentraLicense.mqh` into your MetaTrader `MQL5/Include/` folder, then add this to **any** `.mq5` indicator or EA:
+
+```mql5
+#define LICENSE_API_URL  "https://your-domain.onrender.com/api/check-license"
+#include <DecentraLicense.mqh>
+
+input string InpLicenseKey = "";  // License Key
+
+int OnInit() {
+    LicenseResult res;
+    if (!ValidateLicenseWithDevice(InpLicenseKey, res)) {
+        Print("[License] FAILED: ", res.message);
+        return INIT_FAILED;   // removes indicator / stops EA
+    }
+    Print("[License] OK! Valid until: ", res.expiresAt);
+    return INIT_SUCCEEDED;
+}
+```
+
+The include file automatically handles:
+- Device fingerprinting (per-PC/per-terminal lock enforced against `max_devices`)
+- Friendly error messages (expired, device limit reached, not found, HTTP errors)
+- Error 4014 hints (guides customer to add your URL to MT5's Allowed WebRequest list)
+- Background periodic rechecking helper: `if (!CheckPeriodicRevalidation(barCount, 500, InpLicenseKey)) ...`
+
+### 2. TypeScript / Node.js (Bots, SaaS, Electron, CLI tools)
+
+Copy `clients/typescript/validateLicense.ts` into your project:
+
+```ts
+import { validateLicense, getMachineDeviceId } from "./validateLicense";
+
+const result = await validateLicense({
+  apiUrl: "https://your-domain.onrender.com/api/check-license",
+  licenseKey: process.env.LICENSE_KEY!,
+  deviceId: getMachineDeviceId(), // stable per-machine fingerprint
+  productId: "my-bot-id",          // optional: verify product match
+});
+
+if (!result.valid) {
+  console.error("License check failed:", result.error);
+  process.exit(1);
+}
+
+console.log("License OK! Active until:", result.expiresAt);
+```
+
+### 3. Any Other Language (Python, C#, Go, Rust, PHP, etc.)
+
+Just make a standard HTTP POST to `https://your-domain.onrender.com/api/check-license`:
+
+```json
+POST /api/check-license
+Content-Type: application/json
+
+{
+  "licenseKey": "TRD-ABCD-EFGH-IJKL-MNOP",
+  "deviceId": "stable-per-machine-hash-or-mac",
+  "productId": "optional-product-id"
+}
+```
+
+- **200 OK**: `{ "valid": true, "message": "...", "expiresAt": "...", "productId": "..." }`
+- **403 Forbidden**: `{ "valid": false, "error": "...", "code": "EXPIRED" | "DEVICE_LIMIT_REACHED" }`
+- **404 Not Found**: `{ "valid": false, "error": "License key not found." }`
+
+---
+
+
 ```mql5
 // In your Expert Advisor's OnInit()
 string license = "TRD-XXXX-XXXX-XXXX-XXXX"; // Load from file or input
