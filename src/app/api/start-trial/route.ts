@@ -61,6 +61,7 @@ export async function POST(req: NextRequest) {
       token_used:     "TRIAL",
       product_id:     product.id,
       expires_at:     expiresAt,
+      max_devices:    Math.max(0, product.max_devices ?? 2),
     });
 
     return NextResponse.json({

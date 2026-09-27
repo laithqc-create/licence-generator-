@@ -70,6 +70,7 @@ export async function createSubscription(payload: {
   token_used:     string;
   product_id:     string;
   expires_at:     string;
+  max_devices:    number;
 }): Promise<Subscription> {
   const { data, error } = await getSupabaseAdmin()
     .from("trading_subscriptions")
@@ -93,4 +94,29 @@ export async function deactivateSubscription(id: string): Promise<void> {
   const { error } = await getSupabaseAdmin()
     .from("trading_subscriptions").update({ is_active: false }).eq("id", id);
   if (error) throw new Error(`[supabase] deactivateSubscription: ${error.message}`);
+}
+
+// ── License device lock (max devices per license) ─────────────────────────────
+
+export async function listLicenseDevices(subscriptionId: string): Promise<string[]> {
+  const { data, error } = await getSupabaseAdmin()
+    .from("license_devices").select("device_id").eq("subscription_id", subscriptionId);
+  if (error) throw new Error(`[supabase] listLicenseDevices: ${error.message}`);
+  return (data ?? []).map(d => d.device_id);
+}
+
+export async function upsertLicenseDevice(subscriptionId: string, deviceId: string): Promise<void> {
+  const { error } = await getSupabaseAdmin()
+    .from("license_devices")
+    .upsert(
+      { subscription_id: subscriptionId, device_id: deviceId, last_seen_at: new Date().toISOString() },
+      { onConflict: "subscription_id,device_id" }
+    );
+  if (error) throw new Error(`[supabase] upsertLicenseDevice: ${error.message}`);
+}
+
+export async function resetLicenseDevices(subscriptionId: string): Promise<void> {
+  const { error } = await getSupabaseAdmin()
+    .from("license_devices").delete().eq("subscription_id", subscriptionId);
+  if (error) throw new Error(`[supabase] resetLicenseDevices: ${error.message}`);
 }

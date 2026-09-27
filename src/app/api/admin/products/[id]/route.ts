@@ -41,6 +41,11 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
           ? body.trial_days
           : existing.trial_days ?? 0)
       : existing.trial_days ?? 0,
+    max_devices:   body.max_devices !== undefined
+      ? (typeof body.max_devices === "number" && Number.isInteger(body.max_devices) && body.max_devices >= 1
+          ? body.max_devices
+          : existing.max_devices ?? 2)
+      : existing.max_devices ?? 2,
     wallet_address: body.wallet_address !== undefined
       ? (typeof body.wallet_address === "string" && /^0x[0-9a-fA-F]{40}$/.test(body.wallet_address.trim())
           ? body.wallet_address.trim()

@@ -64,6 +64,21 @@ bool   g_licenseValid   = false;
 int    g_barsSinceCheck = 0;
 
 //+------------------------------------------------------------------+
+//| Stable device fingerprint for the license device lock            |
+//| Same terminal + account → same ID (even across restarts).        |
+//| Changing PC / reinstalling MT5 / different broker account →      |
+//| different ID — admin can "Reset devices" for the license.        |
+//+------------------------------------------------------------------+
+string GetDeviceID()
+{
+    string raw = IntegerToString(AccountInfoInteger(ACCOUNT_LOGIN)) + "|" +
+                 TerminalInfoString(TERMINAL_NAME) + "|" +
+                 TerminalInfoString(TERMINAL_PATH) + "|" +
+                 AccountInfoString(ACCOUNT_SERVER);
+    return IntegerToString(StringHash(raw), 16);
+}
+
+//+------------------------------------------------------------------+
 //| License validation — sends POST to /api/check-license            |
 //| Returns true only when the server returns HTTP 200 + valid:true  |
 //+------------------------------------------------------------------+
@@ -97,8 +112,8 @@ bool ValidateLicense(const string key)
         }
     }
 
-    //--- Build JSON body
-    string body    = "{\"licenseKey\":\"" + key + "\"}";
+    //--- Build JSON body (+ device fingerprint for the device lock)
+    string body    = "{\"licenseKey\":\"" + key + "\",\"deviceId\":\"" + GetDeviceID() + "\"}";
     string headers = "Content-Type: application/json\r\n";
 
     char   postData[];

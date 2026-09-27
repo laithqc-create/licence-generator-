@@ -35,6 +35,7 @@ export async function issueOrRenewLicense(
       token_used:     "USDT-BEP20",
       product_id:     product.id,
       expires_at:     expiresAt,
+      max_devices:    Math.max(0, product.max_devices ?? 2),
     });
     return { licenseKey: row.license_key, expiresAt: row.expires_at, isNewUser: true };
   }

@@ -31,7 +31,7 @@ export async function POST(req: NextRequest) {
   let body: Record<string, unknown>;
   try { body = await req.json(); } catch { return NextResponse.json({ error: "Invalid JSON" }, { status: 400 }); }
 
-  const { id, name, description, price_usdt, duration_days, wallet_address, trial_days } = body;
+  const { id, name, description, price_usdt, duration_days, wallet_address, trial_days, max_devices } = body;
 
   // Validate
   if (!id || typeof id !== "string" || !/^[a-z0-9-]+$/.test(id as string))
@@ -47,6 +47,10 @@ export async function POST(req: NextRequest) {
   if (typeof trialRaw !== "number" || !Number.isInteger(trialRaw) || trialRaw < 0)
     return NextResponse.json({ error: "trial_days must be a whole number 0 or greater" }, { status: 400 });
 
+  const maxDevicesRaw = max_devices === undefined ? 2 : max_devices;
+  if (typeof maxDevicesRaw !== "number" || !Number.isInteger(maxDevicesRaw) || maxDevicesRaw < 1)
+    return NextResponse.json({ error: "max_devices must be a whole number of at least 1" }, { status: 400 });
+
   const rawWallet = wallet_address === undefined ? "" : String(wallet_address).trim();
   if (rawWallet && !/^0x[0-9a-fA-F]{40}$/.test(rawWallet))
     return NextResponse.json({ error: "wallet_address must be a valid 0x address (0x + 40 hex chars)" }, { status: 400 });
@@ -61,6 +65,7 @@ export async function POST(req: NextRequest) {
       is_active:     true,
       wallet_address: rawWallet || null,
       trial_days:    trialRaw as number,
+      max_devices:   maxDevicesRaw as number,
     });
     return NextResponse.json({ product }, { status: 201 });
   } catch (e) {

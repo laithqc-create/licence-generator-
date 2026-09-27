@@ -1,10 +1,14 @@
 // ─────────────────────────────────────────────────────────────────────────────
 // /api/check-license — validates a license key, optionally checks productId
+// Registers the EA's device fingerprint and enforces the max-devices quota.
 // Used by MT5 indicator and any external software
 // ─────────────────────────────────────────────────────────────────────────────
 import { NextRequest, NextResponse } from "next/server";
 import { isValidLicenseFormat } from "@/lib/license-generator";
-import { getSubscriptionByKey, deactivateSubscription } from "@/lib/supabase-server";
+import {
+  getSubscriptionByKey, deactivateSubscription,
+  listLicenseDevices, upsertLicenseDevice,
+} from "@/lib/supabase-server";
 import type { CheckLicenseResponse } from "@/types";
 
 function ok(data: Omit<Extract<CheckLicenseResponse,{valid:true}>,"valid">) {
@@ -19,7 +23,7 @@ export async function POST(req: NextRequest) {
   try { body = await req.json(); } catch { return deny("Invalid JSON body.", 400); }
   if (typeof body !== "object" || body === null) return deny("Body must be JSON.", 400);
 
-  const { licenseKey, productId } = body as Record<string, unknown>;
+  const { licenseKey, productId, deviceId } = body as Record<string, unknown>;
 
   if (typeof licenseKey !== "string" || !licenseKey.trim())
     return deny("licenseKey is required.", 400);
@@ -44,6 +48,32 @@ export async function POST(req: NextRequest) {
       try { await deactivateSubscription(sub.id); } catch { /* non-fatal */ }
     }
     return deny("Subscription has expired. Please renew.", 403);
+  }
+
+  // ── Device lock: register / validate the EA fingerprint ─────────────────
+  const maxDevices = sub.max_devices ?? 2;
+  if (typeof deviceId !== "string" || deviceId.trim().length < 6) {
+    return deny(
+      "Device identifier required. Please use the latest version of the indicator.",
+      403
+    );
+  }
+  const device = deviceId.trim();
+  try {
+    const registered = await listLicenseDevices(sub.id);
+    if (registered.includes(device)) {
+      // Known device → refresh last-seen and allow (non-fatal if this fails)
+      try { await upsertLicenseDevice(sub.id, device); } catch { /* non-fatal */ }
+    } else if (registered.length >= maxDevices) {
+      return deny(
+        `This license is already activated on ${maxDevices} device(s). Please contact the seller to reset your devices.`,
+        403
+      );
+    } else {
+      await upsertLicenseDevice(sub.id, device);
+    }
+  } catch (e) {
+    return deny(String(e), 500);
   }
 
   return ok({

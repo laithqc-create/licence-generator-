@@ -9,6 +9,7 @@ export interface Product {
   price_usdt:     number;
   duration_days:  number;
   trial_days:     number; // free trial in days (0 = no trial) — one per wallet per product
+  max_devices:    number; // device-lock quota (default 2)
   is_active:      boolean;
   wallet_address: string | null; // BEP-20 wallet that receives USDT for this product (null → env fallback)
   created_at:     string;
@@ -22,6 +23,7 @@ export interface Subscription {
   product_id:     string | null;
   expires_at:     string;
   is_active:      boolean;
+  max_devices?:   number; // device-lock quota snapshot (default 2)
   created_at:     string;
 }
 

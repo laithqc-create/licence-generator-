@@ -37,11 +37,20 @@ function useAdminApi(secret: string) {
     if (!res.ok) throw new Error("Delete failed");
   }, [secret]);
 
-  return { fetchProducts, saveProduct, deleteProduct };
+  const resetLicenseDevices = useCallback(async (licenseKey: string) => {
+    const res = await fetch("/api/admin/licenses/reset-devices", {
+      method: "POST", headers,
+      body: JSON.stringify({ licenseKey }),
+    });
+    if (!res.ok) { const d = await res.json().catch(() => null); throw new Error(d?.error || "Reset failed"); }
+    return res.json();
+  }, [secret]);
+
+  return { fetchProducts, saveProduct, deleteProduct, resetLicenseDevices };
 }
 
 // ── Empty form state ──────────────────────────────────────────────────────────
-const EMPTY = { id: "", name: "", description: "", price_usdt: 30, duration_days: 30, is_active: true, wallet_address: "", trial_days: 0 };
+const EMPTY = { id: "", name: "", description: "", price_usdt: 30, duration_days: 30, is_active: true, wallet_address: "", trial_days: 0, max_devices: 2 };
 
 // ── Main component ────────────────────────────────────────────────────────────
 export function AdminPanel() {
@@ -94,6 +103,8 @@ export function AdminPanel() {
     if (form.duration_days < 1)     return setFormErr("Duration must be at least 1 day.");
     if (form.trial_days < 0 || !Number.isInteger(form.trial_days))
       return setFormErr("Trial days must be a whole number 0 or greater.");
+    if (form.max_devices < 1 || !Number.isInteger(form.max_devices))
+      return setFormErr("Max devices must be a whole number of at least 1.");
     if (!form.id.trim())            return setFormErr("Product ID is required.");
     if (!/^[a-z0-9-]+$/.test(form.id)) return setFormErr("ID must be lowercase letters, numbers, and hyphens only.");
     const wallet = form.wallet_address.trim();
@@ -117,7 +128,8 @@ export function AdminPanel() {
     setEditing(p.id);
     setForm({ id: p.id, name: p.name, description: p.description,
       price_usdt: p.price_usdt, duration_days: p.duration_days, is_active: p.is_active,
-      wallet_address: p.wallet_address ?? "", trial_days: p.trial_days ?? 0 });
+      wallet_address: p.wallet_address ?? "", trial_days: p.trial_days ?? 0,
+      max_devices: p.max_devices ?? 2 });
     setFormErr("");
   };
 
@@ -262,6 +274,24 @@ export function AdminPanel() {
               <p className="text-[11px] text-slate-600">One free trial per wallet — no payment needed to start.</p>
             </div>
 
+            {/* Max devices per license */}
+            <div className="space-y-1">
+              <label className="text-xs text-slate-400">
+                Max Devices per License{" "}
+                <span className="text-slate-600">— default 2</span>
+              </label>
+              <div className="relative">
+                <input
+                  type="number" min="1" step="1"
+                  value={form.max_devices}
+                  onChange={e => setForm(f => ({ ...f, max_devices: parseInt(e.target.value) || 2 }))}
+                  className="w-full bg-navy-950 border border-navy-700 rounded-xl px-4 py-2.5 pr-16 text-white text-sm focus:outline-none focus:border-teal-500"
+                />
+                <span className="absolute right-4 top-1/2 -translate-y-1/2 text-xs text-slate-400">devices</span>
+              </div>
+              <p className="text-[11px] text-slate-600">How many devices one license may activate (device lock).</p>
+            </div>
+
             {/* Description */}
             <div className="sm:col-span-2 space-y-1">
               <label className="text-xs text-slate-400">Description (optional)</label>
@@ -348,6 +378,7 @@ export function AdminPanel() {
                     <span>·</span>
                     <span>{p.duration_days} days</span>
                     {p.trial_days > 0 && <span className="text-emerald-400">⚡ {p.trial_days}-day trial</span>}
+                    {p.max_devices != null && (<span><span>·</span><span className="text-slate-500">🖥 {p.max_devices} devices</span></span>)}
                   </div>
                 </div>
 
@@ -391,7 +422,56 @@ export function AdminPanel() {
             </div>
           ))}
         </div>
+
+        {/* ── License tools ── */}
+        <LicenseTools api={api} />
       </div>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// LicenseTools — admin utility to reset a license's device lock
+// (used when a customer changes PC / reinstalls their MT5 terminal)
+// ─────────────────────────────────────────────────────────────────────────────
+function LicenseTools({ api }: { api: ReturnType<typeof useAdminApi> }) {
+  const [key, setKey]  = useState("");
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg]  = useState<{ ok: boolean; text: string } | null>(null);
+
+  const doReset = async () => {
+    if (!key.trim()) return setMsg({ ok: false, text: "Enter a license key (TRD-…)." });
+    setBusy(true); setMsg(null);
+    try {
+      await api.resetLicenseDevices(key.trim());
+      setMsg({ ok: true, text: "Devices reset — this license can activate on new devices again." });
+    } catch (e) {
+      setMsg({ ok: false, text: e instanceof Error ? e.message : "Reset failed." });
+    } finally { setBusy(false); }
+  };
+
+  return (
+    <div className="rounded-2xl border border-navy-700 bg-navy-900 p-6 space-y-4">
+      <h2 className="text-base font-bold text-white">License tools</h2>
+      <p className="text-xs text-slate-500">
+        Reset the device lock on a license — e.g. after a customer changes their PC or reinstalls MT5.
+      </p>
+      <div className="flex flex-col sm:flex-row gap-2">
+        <input
+          value={key}
+          onChange={e => setKey(e.target.value)}
+          placeholder="TRD-XXXX-XXXX-XXXX-XXXX"
+          className="flex-1 bg-navy-950 border border-navy-700 rounded-xl px-4 py-2.5 font-mono text-sm text-white placeholder-slate-600 focus:outline-none focus:border-teal-500"
+        />
+        <button
+          onClick={doReset}
+          disabled={busy}
+          className="px-5 py-2.5 rounded-xl bg-amber-500/15 border border-amber-500/30 text-amber-300 text-sm font-semibold hover:bg-amber-500/25 disabled:opacity-50"
+        >
+          {busy ? "Resetting…" : "Reset devices"}
+        </button>
+      </div>
+      {msg && <p className={`text-xs ${msg.ok ? "text-emerald-400" : "text-red-400"}`}>{msg.text}</p>}
     </div>
   );
 }
