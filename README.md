@@ -181,14 +181,20 @@ Verifies an on-chain USDT payment and issues/renews a license.
 
 ### `POST /api/check-license`
 
-Validates a license key from an external application (e.g., MQL5 EA).
+Validates a license key from any external application (MQL5 indicator/EA, Node bot, desktop app…).
 
 **Request:**
 ```json
 {
-  "licenseKey": "TRD-A1B2-C3D4-E5F6-G7H8"
+  "licenseKey": "TRD-A1B2-C3D4-E5F6-G7H8",
+  "deviceId": "a1b2c3d4e5f60718",
+  "productId": "optional-product-id"
 }
 ```
+
+- `licenseKey` — 23 characters: `TRD-XXXX-XXXX-XXXX-XXXX`
+- `deviceId` — stable per-machine fingerprint (required; enforced against the key's `max_devices`)
+- `productId` — optional; when sent it must match the key's product
 
 **Response 200:**
 ```json
@@ -217,38 +223,52 @@ Validates a license key from an external application (e.g., MQL5 EA).
 
 ---
 
-## MQL5 Integration Example
-
 ## Client Integration Snippets
 
 The backend does not care what software consumes the license — it only exposes `POST /api/check-license`. Drop one of these into any product you build:
 
 ### 1. MetaTrader 5 (MQL5 — Indicators & Expert Advisors)
 
-Drop `mql5/include/DecentraLicense.mqh` into your MetaTrader `MQL5/Include/` folder, then add this to **any** `.mq5` indicator or EA:
+Copy `mql5/include/DecentraLicense.mqh` into your MetaTrader `MQL5/Include/` folder, then add this to **any** `.mq5` indicator or EA:
 
 ```mql5
-#define LICENSE_API_URL  "https://your-domain.onrender.com/api/check-license"
+#define LICENSE_API_URL "https://your-domain.onrender.com/api/check-license"
 #include <DecentraLicense.mqh>
 
-input string InpLicenseKey = "";  // License Key
+input string InpLicenseKey = "";   // TRD-XXXX-XXXX-XXXX-XXXX
+input string InpProductId  = "";   // optional — binds the key to one product
 
 int OnInit() {
-    LicenseResult res;
-    if (!ValidateLicenseWithDevice(InpLicenseKey, res)) {
-        Print("[License] FAILED: ", res.message);
-        return INIT_FAILED;   // removes indicator / stops EA
+    if (!dl_Validate(InpLicenseKey, InpProductId)) {
+        Print("[License] FAILED: ", dl_LastError(), " (HTTP ", dl_LastHttp(), ")");
+        return INIT_FAILED;        // removes the indicator / stops the EA
     }
-    Print("[License] OK! Valid until: ", res.expiresAt);
+    Print("[License] OK! Valid until: ", dl_LastExpiry());
     return INIT_SUCCEEDED;
 }
 ```
 
+> ⚠️ **Indicators can NOT use `WebRequest()`.** MetaTrader 5 forbids it inside custom
+> indicators: it always fails with **error 4014** (`ERR_FUNCTION_NOT_ALLOWED`) no matter what
+> you add to *Tools → Options → Expert Advisors → Allow WebRequest for listed URLs*.
+> The snippet therefore performs the HTTPS POST through the native Windows **WinINet** API
+> (`wininet.dll`), which is allowed in indicators, EAs **and** scripts. Inside an EA/script it
+> still falls back to `WebRequest()` automatically if DLL imports are switched off.
+
+**One-time setup per terminal (your customers too):** *Tools → Options → Expert Advisors →* ✅ *Allow DLL imports*.
+No URL whitelist is required — WinINet bypasses MT5's allowed-URL list, so you never have to walk a customer through pasting your domain there.
+
 The include file automatically handles:
-- Device fingerprinting (per-PC/per-terminal lock enforced against `max_devices`)
-- Friendly error messages (expired, device limit reached, not found, HTTP errors)
-- Error 4014 hints (guides customer to add your URL to MT5's Allowed WebRequest list)
-- Background periodic rechecking helper: `if (!CheckPeriodicRevalidation(barCount, 500, InpLicenseKey)) ...`
+- Device fingerprinting (`dl_DeviceID()` — FNV-1a over account + terminal + server, enforced against the key's `max_devices`)
+- 23-character key format check (`TRD-XXXX-XXXX-XXXX-XXXX`)
+- Friendly error messages (expired, device limit reached, key not found, no internet, DLLs disabled)
+- Full diagnostics: `dl_LastError()`, `dl_LastHttp()`, `dl_LastExpiry()`, `dl_UsedWinINet()`
+- Periodic re-checking — simply call `dl_Validate(...)` again every N bars (see `mql5/ScalpingRibbonPro.mq5`)
+
+> **The licensing backend needs no change for any of this.** It only ever sees the same
+> `POST /api/check-license` with `{"licenseKey","deviceId"[,"productId"]}` — WinINet merely
+> carries it. The transport lives 100% in the client product, so the service stays
+> product-agnostic and reusable for every product you ship.
 
 ### 2. TypeScript / Node.js (Bots, SaaS, Electron, CLI tools)
 
@@ -294,28 +314,9 @@ Content-Type: application/json
 ---
 
 
-```mql5
-// In your Expert Advisor's OnInit()
-string license = "TRD-XXXX-XXXX-XXXX-XXXX"; // Load from file or input
-string url = "https://your-domain.vercel.app/api/check-license";
-string body = "{\"licenseKey\":\"" + license + "\"}";
-
-char post[], result[];
-string headers = "Content-Type: application/json\r\n";
-ArrayResize(post, StringToCharArray(body, post, 0, WHOLE_ARRAY, CP_UTF8) - 1);
-
-int res = WebRequest("POST", url, headers, 5000, post, result, headers);
-
-if (res == 200) {
-    Print("License valid — EA running.");
-} else if (res == 403) {
-    Print("License expired — stopping EA.");
-    ExpertRemove();
-} else {
-    Print("License check failed (HTTP ", res, ") — blocking EA.");
-    ExpertRemove();
-}
-```
+> **Legacy note:** the raw `WebRequest("POST", ...)` pattern shown in older revisions only
+> works inside **Expert Advisors and scripts** — never inside indicators (error 4014).
+> Use `DecentraLicense.mqh` instead, so every product talks to the API the same way.
 
 ---
 

@@ -12,18 +12,21 @@
 //| Replace the URL below with your deployed Vercel domain.          |
 //| Leave everything else in this block unchanged.                   |
 //+------------------------------------------------------------------+
-#define LICENSE_API_URL  "https://your-domain.vercel.app/api/check-license"
+#define LICENSE_API_URL  "https://your-domain.onrender.com/api/check-license"
 #define LICENSE_TIMEOUT  10000   // ms — max wait per HTTP request
 #define RECHECK_BARS     500     // re-validate every N completed bars
 
-// Include the generic, reusable license gate snippet
+// Include the generic, reusable license gate snippet.
+// INSTALL: copy mql5/include/DecentraLicense.mqh into ...\MQL5\Include\
+// (it uses WinINet because MT5 blocks WebRequest inside indicators)
 #define DL_API_URL  LICENSE_API_URL
 #define DL_TIMEOUT  LICENSE_TIMEOUT
-#include "include/DecentraLicense.mqh"
+#include <DecentraLicense.mqh>
 
 //--- Input Parameters
 input group "══════════ License ══════════"
 input string InpLicenseKey = "TRD-XXXX-XXXX-XXXX-XXXX"; // Your License Key
+input string InpProductId  = "";                        // Product ID (optional — binds key to 1 product)
 
 input group "══════════ VIDYA Ribbon Settings ══════════"
 input double InpBufferMultiplier = 0.000010; // Ribbon Buffer Multiplier
@@ -72,9 +75,9 @@ int    g_barsSinceCheck = 0;
 //| License validation — delegates to DecentraLicense.mqh snippet    |
 //| Reusable for ANY indicator or EA you build.                      |
 //+------------------------------------------------------------------+
-bool ValidateLicense(const string key)
+bool ValidateLicense(const string key, const string productId = "")
 {
-    bool ok = dl_Validate(key);
+    bool ok = dl_Validate(key, productId);
     if(ok)
     {
         Print("[License] Valid ✓  Expires: ", dl_LastExpiry());
@@ -254,7 +257,7 @@ int OnCalculate(const int rates_total,
         if(g_barsSinceCheck >= RECHECK_BARS)
         {
             g_barsSinceCheck = 0;
-            g_licenseValid   = ValidateLicense(InpLicenseKey);
+            g_licenseValid   = ValidateLicense(InpLicenseKey, InpProductId);
 
             if(!g_licenseValid)
             {
